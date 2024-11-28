@@ -1,5 +1,3 @@
-package lparser
-
 /* kinds of variables/expressions */
 enum class ExpressionKind
 {

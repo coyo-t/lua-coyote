@@ -1,5 +1,3 @@
-package lparser
-
 // TODO: sealed class
 class ExpressionDesc(val kind: ExpressionKind)
 {

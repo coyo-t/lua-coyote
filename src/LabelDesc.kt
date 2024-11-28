@@ -1,5 +1,3 @@
-package lparser
-
 class LabelDesc(
 	var name:String,
 	var pc:Int,

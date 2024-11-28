@@ -1,5 +1,3 @@
-package lparser
-
 enum class VariableKind
 {
 	// regular
