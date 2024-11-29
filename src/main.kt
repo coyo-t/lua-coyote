@@ -1,11 +1,11 @@
 
-val DEC_NUMBERS = "0123456789".toSet()
-val HEX_NUMBERS = DEC_NUMBERS + "abcdefABCDEF".toSet()
 
-fun Char.hexToInt (): Int
+
+fun Char?.hexToInt (): Int
 {
 	return when (this)
 	{
+		null -> throw IllegalArgumentException("Expecting a hex digit")
 		in '0'..'9' -> this - '0'
 		in 'a'..'f' -> this - 'W'
 		in 'A'..'F' -> this - '7'
@@ -15,15 +15,16 @@ fun Char.hexToInt (): Int
 
 class StringReader
 {
-
 	operator fun StringBuilder.plusAssign (e:Char)
 	{
 		append(e)
 	}
 
+
+
 	var text = ""
 	var cursor = 0
-
+	var lineNumber = 1
 	var current: Char? = null
 
 
@@ -50,6 +51,21 @@ class StringReader
 		return false
 	}
 
+	fun incrLineNumber ()
+	{
+		check (curIsNewline)
+		val pev = current
+		next()
+		if (curIsNewline && current != pev)
+		{
+			next()
+		}
+		if (lineNumber++ >= Int.MAX_VALUE)
+		{
+			throw IllegalStateException("Chunk has too many lines")
+		}
+	}
+
 	fun readString (delimiter:Char): String
 	{
 		val outs = StringBuilder()
@@ -70,7 +86,19 @@ class StringReader
 						'r' -> outs += '\u000d'
 						't' -> outs += '\u0009'
 						'v' -> outs += '\u000b'
-						'x' -> {
+						'x' -> outs += run {
+							val hi = escCh.hexToInt().also { next() }
+							val lo = current.hexToInt().also { next() }
+							((hi shl 4) or lo).toChar()
+						}
+						'u' -> TODO("i dont feel like adding all the utf8 esc stuff rn")
+
+						'r', 'n' -> outs += '\n'.also { incrLineNumber() }
+
+						'\"', '\'', '\\' ->  outs += ch
+
+						'z' -> {
+							val spaces = "\r\n ".toSet()
 
 						}
 					}
