@@ -71,8 +71,6 @@ value class TK(val rs: Char)
 
 class FuncState
 class lua_State
-class Mbuffer
-class ZIO
 class Table
 class Dyndata
 class TString
@@ -193,11 +191,53 @@ class LexState
 		return false
 	}
 
+	fun currIsNewline () = current == TK('\n') || current == TK('\r')
+
+	/*
+	** increment line number and skips newline sequence (any of
+	** \n, \r, \n\r, or \r\n)
+	*/
+	private fun inclinenumber ()
+	{
+		check(currIsNewline())
+		val old = current
+		next() /* skip '\n' or '\r' */
+		if (currIsNewline() && current != old)
+		{
+			next(); /* skip '\n\r' or '\r\n' */
+		}
+		if (++linenumber >= Int.MAX_VALUE)
+		{
+			lexerror("chunk has too many lines", TK(0))
+		}
+	}
+
+	private fun save (c:TK)
+	{
+		val b = buff
+//		if (luaZ_bufflen(b) + 1 > luaZ_sizebuffer(b))
+//		{
+//			if (luaZ_sizebuffer(b) >= MAX_SIZE / 2)
+//				lexerror("lexical element too long", TK(0))
+//			val newsize = luaZ_sizebuffer(b) * 2
+//			luaZ_resizebuffer(ls->L, b, newsize)
+//		}
+//		b.buffer[luaZ_bufflen(b)++] = cast_char(c);
+	}
+
+	private fun save_and_next ()
+	{
+		save(current)
+		next()
+	}
+
 	private fun lexerror (msg:String, token:TK): Nothing
 	{
-		val msg = luaG_addinfo(ls->L, msg, ls->source, ls->linenumber)
-		if (token.rs.code != 0)
-			luaO_pushfstring(ls->L, "%s near %s", msg, txtToken(ls, token))
+//		val msg = luaG_addinfo(ls->L, msg, ls->source, ls->linenumber)
+//		if (token.rs.code != 0)
+//		{
+//			luaO_pushfstring(ls->L, "%s near %s", msg, txtToken(ls, token))
+//		}
 		throw LuaSyntaxException()
 	}
 
@@ -230,17 +270,17 @@ class LexState
 					if (current == TK('['))
 					{
 						/* long comment? */
-						val sep = skip_sep()
+//						val sep = skip_sep()
 						/* 'skip_sep' may dirty the buffer */
-						luaZ_resetbuffer(buff)
-						if (sep >= 2)
-						{
-							/* skip long comment */
-							read_long_string(null, sep)
-							/* previous call may dirty the buff. */
-							luaZ_resetbuffer(buff)
-							break;
-						}
+//						luaZ_resetbuffer(buff)
+//						if (sep >= 2)
+//						{
+//							/* skip long comment */
+//							read_long_string(null, sep)
+//							/* previous call may dirty the buff. */
+//							luaZ_resetbuffer(buff)
+//							break;
+//						}
 					}
 					/* else short comment */
 					while (!currIsNewline() && current != TK.EOZ)
@@ -252,15 +292,15 @@ class LexState
 				}
 				TK('[')-> {
 					/* long string or simply '[' */
-					val sep = skip_sep()
-					if (sep >= 2)
-					{
-						read_long_string(seminfo, sep)
-						return TK.STRING
-					}
+//					val sep = skip_sep()
+//					if (sep >= 2)
+//					{
+//						read_long_string(seminfo, sep)
+//						return TK.STRING
+//					}
 					/* '[=...' missing second bracket? */
-					if (sep == 0)
-						lexerror("invalid long string delimiter", TK.STRING)
+//					if (sep == 0)
+//						lexerror("invalid long string delimiter", TK.STRING)
 					return TK('[')
 				}
 				TK('=') -> {
@@ -301,7 +341,7 @@ class LexState
 				}
 				TK('"'), TK('\'') -> {
 					/* short literal strings */
-					read_string(current, seminfo)
+//					read_string(current, seminfo)
 					return TK.STRING
 				}
 				TK('.') -> {
@@ -313,8 +353,8 @@ class LexState
 							return TK.DOTS /* '...' */
 						return TK.CONCAT /* '..' */
 					}
-					if (!lisdigit(current)) return TK('.')
-					return read_numeral(seminfo)
+//					if (!lisdigit(current)) return TK('.')
+//					return read_numeral(seminfo)
 				}
 
 				TK('0'),
@@ -327,26 +367,26 @@ class LexState
 				TK('7'),
 				TK('8'),
 				TK('9') -> {
-					return read_numeral(seminfo)
+//					return read_numeral(seminfo)
 				}
 				TK.EOZ -> return TK.EOS
 				else -> {
-					if (lislalpha(current))
-					{
-						/* identifier or reserved word? */
-						do
-						{
-							save_and_next();
-						} while (lislalnum(current))
-						val ts = luaX_newstring(
-							luaZ_buffer(buff),
-							luaZ_bufflen(buff)
-						)
-						seminfo.ts = ts
-						if (isreserved(ts)) /* reserved word? */
-							return TK(ts.extra - 1 + TK.FIRST_RESERVED)
-						return TK.NAME
-					}
+//					if (lislalpha(current))
+//					{
+//						/* identifier or reserved word? */
+//						do
+//						{
+//							save_and_next();
+//						} while (lislalnum(current))
+//						val ts = luaX_newstring(
+//							luaZ_buffer(buff),
+//							luaZ_bufflen(buff)
+//						)
+//						seminfo.ts = ts
+//						if (isreserved(ts)) /* reserved word? */
+//							return TK(ts.extra - 1 + TK.FIRST_RESERVED)
+//						return TK.NAME
+//					}
 					/* single-char tokens ('+', '*', '%', '{', '}', ...) */
 					val c = current
 					next()
@@ -354,6 +394,7 @@ class LexState
 				}
 			}
 		}
+		TODO()
 	}
 
 }
