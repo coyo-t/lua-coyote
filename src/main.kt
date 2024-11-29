@@ -1,6 +1,21 @@
 
+val DEC_NUMBERS = "0123456789".toSet()
+val HEX_NUMBERS = DEC_NUMBERS + "abcdefABCDEF".toSet()
+
+fun Char.hexToInt (): Int
+{
+	return when (this)
+	{
+		in '0'..'9' -> this - '0'
+		in 'a'..'f' -> this - 'W'
+		in 'A'..'F' -> this - '7'
+		else -> throw IllegalArgumentException("Expecting a hex digit")
+	}
+}
+
 class StringReader
 {
+
 	operator fun StringBuilder.plusAssign (e:Char)
 	{
 		append(e)
@@ -55,7 +70,9 @@ class StringReader
 						'r' -> outs += '\u000d'
 						't' -> outs += '\u0009'
 						'v' -> outs += '\u000b'
+						'x' -> {
 
+						}
 					}
 				}
 			}
