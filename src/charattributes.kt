@@ -25,7 +25,7 @@ value class CharAttribute(val bits:Int)
 
 		val Non = CharAttribute(0)
 
-		operator fun invoke (ch:Char) = TABLE.getOrElse(ch.code) { Non }
+		operator fun invoke (ch:Char?) = ch?.let { TABLE.getOrNull(ch.code) } ?: Non
 	}
 }
 

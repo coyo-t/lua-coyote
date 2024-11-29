@@ -23,7 +23,7 @@ class StringReader
 
 
 	var text = ""
-	var cursor = 0
+	var cursor = 1
 	var lineNumber = 1
 	var current: Char? = null
 
@@ -39,6 +39,7 @@ class StringReader
 	{
 		text = source
 		current = source.getOrNull(0)
+		cursor = 1
 	}
 
 	fun checkNext1 (ch:Char): Boolean
@@ -68,6 +69,7 @@ class StringReader
 
 	fun readString (delimiter:Char): String
 	{
+		next()
 		val outs = StringBuilder()
 		while (current != delimiter)
 		{
@@ -98,23 +100,40 @@ class StringReader
 						'\"', '\'', '\\' ->  outs += ch
 
 						'z' -> {
-							val spaces = "\r\n ".toSet()
-
+							next() // skip z
+							while (CharAttribute(current).isSpace)
+							{
+								if (curIsNewline)
+								{
+									incrLineNumber()
+								}
+								else
+								{
+									next()
+								}
+							}
+						}
+						else -> {
+							check(CharAttribute(cursor).isDigit) { "Invalid escape sequence" }
+							TODO("dont feel like adding decimal esc seqs")
 						}
 					}
 				}
+				else -> outs += ch.also { next() }
 			}
 		}
-		TODO()
+		return outs.toString()
 	}
 }
 
 
-
+const val TEST = """'This is a test\\n string!'"""
 
 fun main ()
 {
-
+	val sr = StringReader()
+	sr.setInput(TEST)
+	println(sr.readString('\''))
 }
 
 
