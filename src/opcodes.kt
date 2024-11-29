@@ -87,6 +87,7 @@ value class OpModeBits (val flags:Int)
 	val mmMode get() = (flags and (1 shl 7)) != 0
 }
 
+
 enum class OpCode(val id:Int, val mode:OpModeBits)
 {
 	MOVE      (0x00, OpMode.iABC(a=true)),
