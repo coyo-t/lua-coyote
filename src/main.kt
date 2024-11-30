@@ -1,3 +1,4 @@
+// https://en.cppreference.com/w/c/language/escape
 const val EOS = Char.MAX_VALUE
 
 sealed class Token
@@ -37,26 +38,52 @@ sealed class Token
 		}
 	}
 	class Symbol (val symbol: String): Token()
+	{
+		companion object
+		{
+			val DASH = Symbol("-")
+			val LBRACKET = Symbol("[")
+			val EQ = Symbol("=")
+			val DOUBLEEQ = Symbol("==")
+			val LEQ = Symbol("<=")
+			val LSH = Symbol("<<")
+			val LT = Symbol("<")
+			val GEQ = Symbol(">=")
+			val RSH = Symbol(">>")
+			val GT = Symbol(">")
+			val DOUBLESLASH = Symbol("//")
+			val SLASH = Symbol("/")
+			val NEQ = Symbol("~=")
+			val SQUIGGLE = Symbol("~")
+			val DOUBLECOLON = Symbol("::")
+			val COLON = Symbol(":")
+			val ELLIPSIS = Symbol("...")
+			val CONCAT = Symbol("..")
+			val DOT = Symbol(".")
+		}
+	}
 
 	class StringLiteral (val body:String): Token()
 	class Comment: Token()
 	class IntLiteral (val value:Int): Token()
 	class NumberLiteral (val value:Double): Token()
 	class Identifier (val name:String):Token()
+	data object EndOfStream : Token()
 }
 
 
-
+const val ESCF = '\u000c'
+const val ESCV = '\u000b'
 
 
 
 val CONSIDERED_WHITESPACE = setOf(
-	'\u0009',
-	'\u000a',
-	'\u000b',
-	'\u000c',
-	'\u000d',
-	'\u0020',
+	'\u0009', // t
+	'\u000a', // n
+	'\u000b', // v
+	'\u000c', // f
+	'\u000d', // r
+	'\u0020', // space
 )
 
 class LStringReader(text: String): StringReader(text)
@@ -150,6 +177,12 @@ class LStringReader(text: String): StringReader(text)
 		tokens += Token.StringLiteral(sb.toString().also { println("string $it") })
 	}
 
+	fun voreNext (expect:Char): Boolean
+	{
+		skip()
+		return vore(expect)
+	}
+
 	/**
 	read a sequence '[=\*[' or ']=\*]', leaving the last bracket. If
 	sequence is well formed, return its number of '='s + 2; otherwise,
@@ -214,6 +247,123 @@ class LStringReader(text: String): StringReader(text)
 			}
 		}
 	}
+
+
+	fun lex ()
+	{
+		while (true)
+		{
+			when (val ch = peek())
+			{
+				'\n', '\r' -> voreNewline()
+				' ', ESCF, '\t', ESCV -> skip()
+				'-' -> {
+					skip()
+					if (!vore('-'))
+					{
+						tokens += Token.Symbol.DASH
+						continue
+					}
+					if (peek() == '[')
+					{
+						// maybe multiline comment
+						val count = voreMultilineBrackets()
+						if (count >= 2)
+						{
+							readMultilineString(count, true)
+							continue
+						}
+					}
+					// line comment
+					skipWhile { peekIsNewline() && it != EOS }
+				}
+				'[' -> {
+					val count = voreMultilineBrackets()
+					if (count >= 2)
+					{
+						readMultilineString(count, false)
+						continue
+					}
+					if (count == 0)
+					{
+						throw RuntimeException("invalid multiline string delimiter")
+					}
+					tokens += Token.Symbol.LBRACKET
+				}
+				'=' -> {
+					tokens += if (voreNext('='))
+						Token.Symbol.DOUBLEEQ
+					else
+						Token.Symbol.EQ
+				}
+				'<' -> {
+					skip()
+					tokens += if (vore('='))
+						Token.Symbol.LEQ
+					else if (vore('<'))
+						Token.Symbol.LSH
+					else
+						Token.Symbol.LT
+				}
+				'>' -> {
+					skip()
+					tokens += if (vore('='))
+						Token.Symbol.GEQ
+					else if (vore('>'))
+						Token.Symbol.RSH
+					else
+						Token.Symbol.GT
+				}
+				'/' -> {
+					tokens += if (voreNext('/'))
+						Token.Symbol.DOUBLESLASH
+					else
+						Token.Symbol.SLASH
+				}
+				'~' -> {
+					tokens += if (voreNext('='))
+						Token.Symbol.NEQ
+					else
+						Token.Symbol.SQUIGGLE
+				}
+				':' -> {
+					tokens += if (voreNext(':'))
+						Token.Symbol.DOUBLECOLON
+					else
+						Token.Symbol.COLON
+				}
+				'\"', '\'' ->  readString(ch)
+				'.' -> {
+					skip()
+					if (vore('.'))
+					{
+						if (vore('.'))
+						{
+							tokens += Token.Symbol.ELLIPSIS
+							continue
+						}
+						tokens += Token.Symbol.CONCAT
+						continue
+					}
+					val ch2 = peek()
+					if (ch2 == '_' || ch2.isDigit())
+					{
+						TODO("Numberz")
+					}
+					tokens += Token.Symbol.DOT
+				}
+				in '0'..'9' -> {
+					TODO("Numberz")
+				}
+				EOS -> tokens += Token.EndOfStream
+				else -> {
+
+				}
+			}
+		}
+	}
+
+
 }
 
 
