@@ -5,13 +5,25 @@ sealed class Token
 {
 	class Keyword private constructor (val kw: String): Token()
 	{
-		init { registered += kw }
+		init
+		{
+			registered += kw
+			nametable[kw] = this
+		}
+
+		override fun toString(): String
+		{
+			return "<Keyword: $kw>"
+		}
 
 		companion object
 		{
 			private val registered = mutableSetOf<String>()
+			private val nametable = mutableMapOf<String, Token>()
 
 			operator fun contains (s:String) = s in registered
+
+			operator fun get (k:String) = nametable[k]!!
 
 			val AND = Keyword("and")
 			val BREAK = Keyword("break")
@@ -39,6 +51,13 @@ sealed class Token
 	}
 	class Symbol (val symbol: String): Token()
 	{
+		constructor (ch:Char): this(ch.toString())
+
+		override fun toString(): String
+		{
+			return "<Symbol: $symbol>"
+		}
+
 		companion object
 		{
 			val DASH = Symbol("-")
@@ -62,19 +81,66 @@ sealed class Token
 			val DOT = Symbol(".")
 		}
 	}
-
 	class StringLiteral (val body:String): Token()
+	{
+		override fun toString(): String
+		{
+			return "<String Literal: \"$body\">"
+		}
+	}
 	class Comment: Token()
+	{
+		override fun toString(): String
+		{
+			return "<Comment>"
+		}
+	}
 	class IntLiteral (val value:Int): Token()
+	{
+		override fun toString(): String
+		{
+			TODO()
+		}
+	}
 	class NumberLiteral (val value:Double): Token()
+	{
+		override fun toString(): String
+		{
+			TODO()
+		}
+	}
 	class Identifier (val name:String):Token()
+	{
+		override fun toString(): String
+		{
+			return "<Identifier: $name>"
+		}
+	}
 	data object EndOfStream : Token()
+	{
+		override fun toString(): String
+		{
+			return "<End-of-Stream>"
+		}
+	}
 }
 
 
 const val ESCF = '\u000c'
 const val ESCV = '\u000b'
 
+val UNDERSCORE = setOf('_')
+
+val ALPHABETICAL_SYMBOLS = (
+	('a'..'z').toSet() +
+	('A'..'Z').toSet()
+)
+val DIGIT_SYMBOLS = ('0'..'9').toSet()
+
+val OKAY_TO_START_IDENTIFIER = ALPHABETICAL_SYMBOLS + UNDERSCORE
+
+val IDENTIFIER_SYMBOLS = OKAY_TO_START_IDENTIFIER + DIGIT_SYMBOLS
+val HEXIDECIMAL_SYMBOLS = ALPHABETICAL_SYMBOLS + UNDERSCORE + DIGIT_SYMBOLS
 
 
 val CONSIDERED_WHITESPACE = setOf(
@@ -90,6 +156,7 @@ class LStringReader(text: String): StringReader(text)
 {
 	val tokens = mutableListOf<Token>()
 	val tokenRanges = mutableListOf<IntRange>()
+	val tokenLineNumbers = mutableListOf<Int>()
 
 	fun peekIsNewline () = peek().let { it=='\r'||it=='\n' }
 
@@ -183,6 +250,28 @@ class LStringReader(text: String): StringReader(text)
 		return vore(expect)
 	}
 
+	fun voreIfIn (set:Set<Char>): Boolean
+	{
+		if (peek() in set)
+		{
+			return true.also { skip() }
+		}
+		return false
+	}
+
+	fun voreWhile (cond:(Char)->Boolean):String
+	{
+		val start = tell()
+		while (cond(peek()))
+		{
+			skip()
+		}
+		val count = tell()-start
+		return if (count == 0) "" else text.substring(start, tell())
+	}
+
+
+
 	/**
 	read a sequence '[=\*[' or ']=\*]', leaving the last bracket. If
 	sequence is well formed, return its number of '='s + 2; otherwise,
@@ -247,7 +336,6 @@ class LStringReader(text: String): StringReader(text)
 			}
 		}
 	}
-
 
 	fun lex ()
 	{
@@ -345,11 +433,7 @@ class LStringReader(text: String): StringReader(text)
 						tokens += Token.Symbol.CONCAT
 						continue
 					}
-					val ch2 = peek()
-					if (ch2 == '_' || ch2.isDigit())
-					{
-						TODO("Numberz")
-					}
+					// disallow leading-zeroless decimals
 					tokens += Token.Symbol.DOT
 				}
 				in '0'..'9' -> {
@@ -357,7 +441,17 @@ class LStringReader(text: String): StringReader(text)
 				}
 				EOS -> tokens += Token.EndOfStream
 				else -> {
-
+					if (ch in OKAY_TO_START_IDENTIFIER)
+					{
+						val id = voreWhile { it in OKAY_TO_START_IDENTIFIER }
+						tokens += if (id in Token.Keyword)
+							Token.Keyword[id]
+						else
+							Token.Identifier(id)
+						continue
+					}
+					// misc symbol
+					tokens += Token.Symbol(ch)
 				}
 			}
 		}
