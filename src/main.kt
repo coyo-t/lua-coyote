@@ -1,11 +1,10 @@
 
 
 
-fun Char?.hexToInt (): Int
+fun Char.hexToInt (): Int
 {
 	return when (this)
 	{
-		null -> throw IllegalArgumentException("Expecting a hex digit")
 		in '0'..'9' -> this - '0'
 		in 'a'..'f' -> this - 'W'
 		in 'A'..'F' -> this - '7'
@@ -13,7 +12,22 @@ fun Char?.hexToInt (): Int
 	}
 }
 
-class StringReader
+const val EOS = Char.MAX_VALUE
+
+class StringReader(var text:String)
+{
+	var cursor = 0
+	var lineNumber = 1
+
+	fun next (): Char
+	{
+		TODO()
+	}
+
+}
+
+
+class LStringReader
 {
 	operator fun StringBuilder.plusAssign (e:Char)
 	{
@@ -25,12 +39,12 @@ class StringReader
 	var text = ""
 	var cursor = 1
 	var lineNumber = 1
-	var current: Char? = null
+	var current = EOS
 
 
 	fun next ()
 	{
-		current = text.getOrNull(cursor++)
+		current = text.getOrElse(cursor++) { EOS }
 	}
 
 	val curIsNewline get() = current == '\n' || current == '\r'
@@ -38,7 +52,7 @@ class StringReader
 	fun setInput (source:String)
 	{
 		text = source
-		current = source.getOrNull(0)
+		current = source.getOrElse(0) { EOS }
 		cursor = 1
 	}
 
@@ -75,8 +89,7 @@ class StringReader
 		{
 			when (val ch = current)
 			{
-				null -> throw IllegalStateException("unfinished string (eos)")
-				'\r', '\n' -> throw IllegalStateException("unfinished string (newline)")
+				EOS, '\r', '\n' -> throw IllegalStateException("unfinished string")
 				'\\' -> {
 					next()
 					when (val escCh = current)
@@ -131,7 +144,7 @@ const val TEST = """'This is a test\\n string!'"""
 
 fun main ()
 {
-	val sr = StringReader()
+	val sr = LStringReader()
 	sr.setInput(TEST)
 	println(sr.readString('\''))
 }
