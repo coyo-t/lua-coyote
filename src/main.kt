@@ -241,7 +241,7 @@ class LStringReader(text: String): StringReader(text)
 		tokenRanges += stringBegin..tokens.size
 		// vore ending delimiter
 		skip()
-		tokens += Token.StringLiteral(sb.toString().also { println("string $it") })
+		tokens += Token.StringLiteral(sb.toString())//.also { println("string $it") })
 	}
 
 	fun voreNext (expect:Char): Boolean
@@ -317,7 +317,7 @@ class LStringReader(text: String): StringReader(text)
 						tokens += if (isComment)
 							Token.Comment()
 						else
-							Token.StringLiteral(sb.toString()).also { println("string ${it.body}") }
+							Token.StringLiteral(sb.toString())//.also { println("string ${it.body}") }
 						tokenRanges += start..(tell()-spacings)
 						return
 					}
