@@ -339,7 +339,7 @@ class LStringReader(text: String): StringReader(text)
 
 	fun lex ()
 	{
-		while (true)
+		while (tell() <= text.length)
 		{
 			when (val ch = peek())
 			{
@@ -363,7 +363,7 @@ class LStringReader(text: String): StringReader(text)
 						}
 					}
 					// line comment
-					skipWhile { peekIsNewline() && it != EOS }
+					skipWhile { !peekIsNewline() && it != EOS }
 				}
 				'[' -> {
 					val count = voreMultilineBrackets()
@@ -476,6 +476,17 @@ local a = [[
 if a == test then
 	print'Oigh jeez this guy agian'
 end
+-- this is a COMMENT!!!!!!
+do
+	thisis = notacomment
+end
+--[===[ this is
+	a SUPER
+	-- [[
+		sorry 2 interrupt :]
+	]]
+comment
+]===]
 """.trimIndent()
 
 fun main ()
