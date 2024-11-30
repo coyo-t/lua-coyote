@@ -55,7 +55,7 @@ sealed class Token
 
 		override fun toString(): String
 		{
-			return "<Symbol: $symbol>"
+			return "<Symbol: $symbol >"
 		}
 
 		companion object
@@ -420,7 +420,10 @@ class LStringReader(text: String): StringReader(text)
 					else
 						Token.Symbol.COLON
 				}
-				'\"', '\'' ->  readString(ch)
+				'\"', '\'' -> {
+					skip()
+					readString(ch)
+				}
 				'.' -> {
 					skip()
 					if (vore('.'))
@@ -439,7 +442,10 @@ class LStringReader(text: String): StringReader(text)
 				in '0'..'9' -> {
 					TODO("Numberz")
 				}
-				EOS -> tokens += Token.EndOfStream
+				EOS -> {
+					tokens += Token.EndOfStream
+					break
+				}
 				else -> {
 					if (ch in OKAY_TO_START_IDENTIFIER)
 					{
@@ -463,20 +469,27 @@ class LStringReader(text: String): StringReader(text)
 
 const val TEST = "'This is a\\x20test\\r\\n string!\\\r\nyeah'"
 val MULTILINE = """
-	[==[abcdefg
-	ahahahaWOW!!!!!!
-	what?????
-	]==]
+local test = "abcdeeznuts"
+local a = [[
+	Yeah what about it??
+]]
+if a == test then
+	print'Oigh jeez this guy agian'
+end
 """.trimIndent()
 
 fun main ()
 {
 	val sr = LStringReader(MULTILINE)
-	sr.skip(3)
-	sr.readMultilineString(4, false)
-//	println((sr.tokens.first() as? Token.StringLiteral)?.body)
-//	val ub = Path("./assets/ubyte.txt").readText(Charsets.ISO_8859_1)
-//	println(ub.escapeilize())
+	sr.lex()
+
+	for (tk in sr.tokens)
+	{
+		println(tk)
+	}
+
+//	sr.skip(3)
+//	sr.readMultilineString(4, false)
 }
 
 
