@@ -39,6 +39,7 @@ fun String.escapeilize ():String
 	return outs.toString()
 }
 
+
 fun Char.hexToInt (): Int
 {
 	return when (this)
@@ -130,7 +131,7 @@ open class StringReader(var text:String)
 
 class LStringReader(text: String): StringReader(text)
 {
-	val tokens = GrowBuffer(text.length)
+	val tokens = mutableListOf<Int>()
 	val tokenRanges = mutableListOf<IntRange>()
 
 	fun peekIsNewline () = peek().let { it=='\r'||it=='\n' }
@@ -161,9 +162,9 @@ class LStringReader(text: String): StringReader(text)
 	fun readString (): String
 	{
 		// includes the starting delimiter for error messages
-		val stringBegin = tokens.tell()
+		val stringBegin = tokens.size
 		val delimiter = read()
-		val outs = StringBuilder()
+		tokens += delimiter.code
 		while (peek() != delimiter)
 		{
 			when (val ch = read())
@@ -172,24 +173,24 @@ class LStringReader(text: String): StringReader(text)
 				'\\' -> {
 					when (val escCh = read())
 					{
-						'a' -> tokens.writeInt('\u0007')
-						'b' -> tokens.writeInt('\u0008')
-						'f' -> tokens.writeInt('\u000c')
-						'n' -> tokens.writeInt('\u000a')
-						'r' -> tokens.writeInt('\u000d')
-						't' -> tokens.writeInt('\u0009')
-						'v' -> tokens.writeInt('\u000b')
+						'a' -> tokens += '\u0007'.code
+						'b' -> tokens += '\u0008'.code
+						'f' -> tokens += '\u000c'.code
+						'n' -> tokens += '\u000a'.code
+						'r' -> tokens += '\u000d'.code
+						't' -> tokens += '\u0009'.code
+						'v' -> tokens += '\u000b'.code
 						'x' ->
 						{
 							val hi = read().hexToInt()
 							val lo = read().hexToInt()
-							tokens.writeInt(((hi shl 4) or lo).toChar())
+							tokens += (hi shl 4) or lo
 						}
 						'u' -> TODO("i dont feel like adding the utf8 esc stuff rn")
 
-						'\r', '\n' -> outs.append('\n').also { voreNewline(true) }
+						'\r', '\n' -> tokens += '\n'.code.also { voreNewline(true) }
 
-						'\"', '\'', '\\' ->  outs.append(escCh)
+						'\"', '\'', '\\' ->  tokens += escCh.code
 
 						'z' -> {
 							while (peek() in CONSIDERED_WHITESPACE)
@@ -210,13 +211,13 @@ class LStringReader(text: String): StringReader(text)
 						}
 					}
 				}
-				else -> tokens.writeInt(ch)
+				else -> tokens += ch.code
 			}
 		}
-		tokens.writeInt(read()) // vore ending delimiter
-		return (stringBegin..tokens.tell()).run {
+		return (stringBegin..tokens.size).run {
+			tokens += read().code // vore ending delimiter
 			tokenRanges += this
-			tokens.memory.asSlice(start.toLong(), endInclusive-start+1L).getString(0L, Charsets.ISO_8859_1)
+			tokens.subList(start+1, endInclusive-1+1).map { i -> i.toChar() }.joinToString(separator = "")
 		}
 	}
 
@@ -224,6 +225,7 @@ class LStringReader(text: String): StringReader(text)
 	{
 		TODO()
 	}
+
 
 }
 
@@ -237,6 +239,7 @@ fun main ()
 {
 	val sr = LStringReader(TEST)
 	val outs = sr.readString()
+
 	println(outs)
 //	val ub = Path("./assets/ubyte.txt").readText(Charsets.ISO_8859_1)
 //	println(ub.escapeilize())
