@@ -127,12 +127,53 @@ open class StringReader(var text:String)
 
 }
 
+enum class TKType
+{
+	KW_AND,
+	KW_BREAK,
+	KW_DO,
+	KW_ELSE,
+	KW_ELSEIF,
+	KW_END,
+	KW_FALSE,
+	KW_FOR,
+	KW_FUNCTION,
+	KW_GOTO,
+	KW_IF,
+	KW_IN,
+	KW_LOCAL,
+	KW_NIL,
+	KW_NOT,
+	KW_OR,
+	KW_REPEAT,
+	KW_RETURN,
+	KW_THEN,
+	KW_TRUE,
+	KW_UNTIL,
+	KW_WHILE,
 
+	`//`,
+	`..`,
+	`...`,
+	`==`,
+	`>=`,
+	`<=`,
+	`~=`,
+	`<<`,
+	`>>`,
+	`::`,
+
+	STRING_LITERAL,
+	INT_LITERAL,
+	IDENTIFIER,
+	NUMBER_LITERAL,
+}
 
 class LStringReader(text: String): StringReader(text)
 {
 	val tokens = mutableListOf<Int>()
 	val tokenRanges = mutableListOf<IntRange>()
+	val tokenTypes = mutableListOf<TKType>()
 
 	fun peekIsNewline () = peek().let { it=='\r'||it=='\n' }
 
@@ -159,12 +200,13 @@ class LStringReader(text: String): StringReader(text)
 		return true
 	}
 
-	fun readString (): String
+	fun readString ()
 	{
 		// includes the starting delimiter for error messages
 		val stringBegin = tokens.size
 		val delimiter = read()
 		tokens += delimiter.code
+		tokenTypes += TKType.STRING_LITERAL
 		while (peek() != delimiter)
 		{
 			when (val ch = read())
@@ -214,11 +256,9 @@ class LStringReader(text: String): StringReader(text)
 				else -> tokens += ch.code
 			}
 		}
-		return (stringBegin..tokens.size).run {
-			tokens += read().code // vore ending delimiter
-			tokenRanges += this
-			tokens.subList(start+1, endInclusive-1+1).map { i -> i.toChar() }.joinToString(separator = "")
-		}
+
+		tokenRanges += stringBegin..tokens.size
+		tokens += read().code // vore ending delimiter
 	}
 
 	fun readMultilineString ()
@@ -230,17 +270,13 @@ class LStringReader(text: String): StringReader(text)
 }
 
 
-const val TEST = (
-	"'This is a\\x20test\\r\\n string!\\\r\nyeah'"+
-	"\u00DE\u00AD\u00CA\u0075\\x32"
-)
+const val TEST = "'This is a\\x20test\\r\\n string!\\\r\nyeah'"
+
 
 fun main ()
 {
 	val sr = LStringReader(TEST)
-	val outs = sr.readString()
 
-	println(outs)
 //	val ub = Path("./assets/ubyte.txt").readText(Charsets.ISO_8859_1)
 //	println(ub.escapeilize())
 }
