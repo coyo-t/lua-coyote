@@ -178,12 +178,52 @@ class LStringReader(text: String): StringReader(text)
 }
 
 
-const val TEST = "'This is a test\\n string!'"
+const val TEST = (
+	"'This is a test\\r\\n string!\\\r\nyeah'"+
+	"\u00DE\u00AD\u00CA\u0075\\x32"
+)
 
+fun String.escapeilize ():String
+{
+	val outs = StringBuilder()
+	val hxch = "0123456789ABCDEF"
+	for (ch in this)
+	{
+		when (ch)
+		{
+			'\u0007' -> outs.append("\\a")
+			'\u0008' -> outs.append("\\b")
+			'\u000c' -> outs.append("\\f")
+			'\u000a' -> outs.append("\\n")
+			'\u000d' -> outs.append("\\r")
+			'\u0009' -> outs.append("\\t")
+			'\u000b' -> outs.append("\\v")
+			'\"' -> outs.append("\\\"")
+			'\'' -> outs.append("\\\'")
+			'\\' -> outs.append("\\\\")
+			else -> {
+				if (ch in ' '..'~')
+				{
+					outs.append(ch)
+				}
+				else
+				{
+					val cp = ch.code
+					outs.append("\\x")
+					outs.append(hxch[(cp shr 4) and 0b00001111])
+					outs.append(hxch[cp and 0b00001111])
+				}
+			}
+		}
+	}
+	return outs.toString()
+}
 fun main ()
 {
 	val sr = LStringReader(TEST)
-	println(sr.readString())
+	val s = sr.readString()
+	println(s)
+	println(s.escapeilize())
 }
 
 
