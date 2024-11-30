@@ -1,5 +1,5 @@
-import java.nio.charset.Charset
 import kotlin.io.path.Path
+import kotlin.io.path.readText
 import kotlin.io.path.writeBytes
 import kotlin.properties.Delegates.observable
 
@@ -222,13 +222,10 @@ const val TEST = (
 	"\u00DE\u00AD\u00CA\u0075\\x32"
 )
 
-val ASCII_ENCODE = Charset.forName("ASCII")
-val ALL_UBYTE_RANGE = ByteArray(0x100) { (it and 0xFF).toByte() }
-
-
 fun main ()
 {
-	Path("./assets/ubyte.txt").writeBytes(ALL_UBYTE_RANGE)
+	val ub = Path("./assets/ubyte.txt").readText(Charsets.ISO_8859_1)
+	println(ub.escapeilize())
 }
 
 
