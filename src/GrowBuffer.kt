@@ -9,15 +9,13 @@ class GrowBuffer (initialSize:Number)
 		private set
 
 	private var f = memory.asbb()
-	private var pretendSize = 0L
 
 	private fun MemorySegment.asbb ()
 		= this.asByteBuffer().order(ByteOrder.nativeOrder())
 
 	init
 	{
-		pretendSize = initialSize.toLong()
-		resize(pretendSize)
+		resize(initialSize.toLong())
 	}
 
 	private fun resize (newSize:Long)
@@ -29,7 +27,6 @@ class GrowBuffer (initialSize:Number)
 		memory = Arena.ofAuto().allocate(newSize).copyFrom(memory)
 		f = (memory.asbb()).apply {
 			position(f.position())
-			limit(f.limit())
 		}
 	}
 
@@ -39,7 +36,6 @@ class GrowBuffer (initialSize:Number)
 		val newSz = tell()+amount
 		if (newSz >= bs)
 		{
-			pretendSize = newSz
 			resize(newSz + (newSz ushr 1))
 		}
 	}
