@@ -88,13 +88,6 @@ sealed class Token
 			return "<String Literal: \"$body\">"
 		}
 	}
-	class Comment: Token()
-	{
-		override fun toString(): String
-		{
-			return "<Comment>"
-		}
-	}
 	class IntLiteral (val value:Int): Token()
 	{
 		override fun toString(): String
@@ -156,7 +149,7 @@ class LStringReader(text: String): StringReader(text)
 {
 	val tokens = mutableListOf<Token>()
 	val tokenRanges = mutableListOf<IntRange>()
-	val tokenLineNumbers = mutableListOf<Int>()
+	val tokenLineNumbers = mutableListOf<IntRange>()
 
 	fun peekIsNewline () = peek().let { it=='\r'||it=='\n' }
 
@@ -176,7 +169,7 @@ class LStringReader(text: String): StringReader(text)
 		{
 			skip()
 		}
-		if (lineNumber++ >= Int.MAX_VALUE)
+		if (_lineNumber++ >= Int.MAX_VALUE)
 		{
 			throw IllegalStateException("Chunk has too many lines")
 		}
@@ -187,6 +180,7 @@ class LStringReader(text: String): StringReader(text)
 	{
 		// includes the starting delimiter for error messages
 		val stringBegin = tokens.size
+		val lineBegin = _lineNumber
 		val sb = StringBuilder()
 		while (peek() != delimiter)
 		{
@@ -239,6 +233,7 @@ class LStringReader(text: String): StringReader(text)
 		}
 
 		tokenRanges += stringBegin..tokens.size
+		tokenLineNumbers += lineBegin.._lineNumber
 		// vore ending delimiter
 		skip()
 		tokens += Token.StringLiteral(sb.toString())//.also { println("string $it") })
@@ -248,15 +243,6 @@ class LStringReader(text: String): StringReader(text)
 	{
 		skip()
 		return vore(expect)
-	}
-
-	fun voreIfIn (set:Set<Char>): Boolean
-	{
-		if (peek() in set)
-		{
-			return true.also { skip() }
-		}
-		return false
 	}
 
 	fun voreWhile (cond:(Char)->Boolean):String
@@ -270,7 +256,17 @@ class LStringReader(text: String): StringReader(text)
 		return if (count == 0) "" else text.substring(start, tell())
 	}
 
+	fun addToken (tk:Token)
+	{
+		tokens += tk
+		tokenLineNumbers += _lineNumber.._lineNumber
+		// i dont feel like managing this part rn so its
+		// lazy and not really working
+		tokenRanges += _mark..cursor
+	}
 
+	infix fun MutableList<Token>.addzor (tk:Token)
+		= addToken(tk)
 
 	/**
 	read a sequence '[=\*[' or ']=\*]', leaving the last bracket. If
@@ -300,7 +296,7 @@ class LStringReader(text: String): StringReader(text)
 		skip()
 		val sb = StringBuilder()
 		val start = tell()
-		val startLine = lineNumber
+		val startLine = _lineNumber
 		while (true)
 		{
 			when (val ch = peek())
@@ -314,11 +310,12 @@ class LStringReader(text: String): StringReader(text)
 					{
 						// closing ]
 						skip()
-						tokens += if (isComment)
-							Token.Comment()
-						else
-							Token.StringLiteral(sb.toString())//.also { println("string ${it.body}") }
-						tokenRanges += start..(tell()-spacings)
+						if (!isComment)
+						{
+							tokens += Token.StringLiteral(sb.toString())
+							tokenRanges += start..(tell()-spacings)
+							tokenLineNumbers += startLine.._lineNumber
+						}
 						return
 					}
 					sb.append(ch)
@@ -346,10 +343,10 @@ class LStringReader(text: String): StringReader(text)
 				'\n', '\r' -> voreNewline()
 				' ', ESCF, '\t', ESCV -> skip()
 				'-' -> {
-					skip()
+					markSkip()
 					if (!vore('-'))
 					{
-						tokens += Token.Symbol.DASH
+						tokens addzor Token.Symbol.DASH
 						continue
 					}
 					if (peek() == '[')
@@ -376,17 +373,17 @@ class LStringReader(text: String): StringReader(text)
 					{
 						throw RuntimeException("invalid multiline string delimiter")
 					}
-					tokens += Token.Symbol.LBRACKET
+					tokens addzor Token.Symbol.LBRACKET
 				}
 				'=' -> {
-					tokens += if (voreNext('='))
+					tokens addzor if (voreNext('='))
 						Token.Symbol.DOUBLEEQ
 					else
 						Token.Symbol.EQ
 				}
 				'<' -> {
 					skip()
-					tokens += if (vore('='))
+					tokens addzor if (vore('='))
 						Token.Symbol.LEQ
 					else if (vore('<'))
 						Token.Symbol.LSH
@@ -394,8 +391,8 @@ class LStringReader(text: String): StringReader(text)
 						Token.Symbol.LT
 				}
 				'>' -> {
-					skip()
-					tokens += if (vore('='))
+					markSkip()
+					tokens addzor if (vore('='))
 						Token.Symbol.GEQ
 					else if (vore('>'))
 						Token.Symbol.RSH
@@ -403,19 +400,19 @@ class LStringReader(text: String): StringReader(text)
 						Token.Symbol.GT
 				}
 				'/' -> {
-					tokens += if (voreNext('/'))
+					tokens addzor if (voreNext('/'))
 						Token.Symbol.DOUBLESLASH
 					else
 						Token.Symbol.SLASH
 				}
 				'~' -> {
-					tokens += if (voreNext('='))
+					tokens addzor if (voreNext('='))
 						Token.Symbol.NEQ
 					else
 						Token.Symbol.SQUIGGLE
 				}
 				':' -> {
-					tokens += if (voreNext(':'))
+					tokens addzor if (voreNext(':'))
 						Token.Symbol.DOUBLECOLON
 					else
 						Token.Symbol.COLON
@@ -425,39 +422,39 @@ class LStringReader(text: String): StringReader(text)
 					readString(ch)
 				}
 				'.' -> {
-					skip()
+					markSkip()
 					if (vore('.'))
 					{
 						if (vore('.'))
 						{
-							tokens += Token.Symbol.ELLIPSIS
+							tokens addzor Token.Symbol.ELLIPSIS
 							continue
 						}
-						tokens += Token.Symbol.CONCAT
+						tokens addzor Token.Symbol.CONCAT
 						continue
 					}
 					// disallow leading-zeroless decimals
-					tokens += Token.Symbol.DOT
+					tokens addzor Token.Symbol.DOT
 				}
 				in '0'..'9' -> {
 					TODO("Numberz")
 				}
 				EOS -> {
-					tokens += Token.EndOfStream
+					tokens addzor Token.EndOfStream
 					break
 				}
 				else -> {
 					if (ch in OKAY_TO_START_IDENTIFIER)
 					{
 						val id = voreWhile { it in OKAY_TO_START_IDENTIFIER }
-						tokens += if (id in Token.Keyword)
+						tokens addzor if (id in Token.Keyword)
 							Token.Keyword[id]
 						else
 							Token.Identifier(id)
 						continue
 					}
 					// misc symbol
-					tokens += Token.Symbol(ch)
+					tokens addzor Token.Symbol(ch)
 				}
 			}
 		}
@@ -473,6 +470,17 @@ local test = "abcdeeznuts"
 local a = [[
 	Yeah what about it??
 ]]
+local b = [[
+	this is a pretty long string eh?
+	uuhhhhhhh.
+	yeah.
+	probably.
+	haha, WOW!!!!!!
+]]
+local c = 'this is a \
+weirdo string that\
+continues itself with whacks'
+
 if a == test then
 	print'Oigh jeez this guy agian'
 end
@@ -494,9 +502,9 @@ fun main ()
 	val sr = LStringReader(MULTILINE)
 	sr.lex()
 
-	for (tk in sr.tokens)
+	for ((i, tk) in sr.tokens.withIndex())
 	{
-		println(tk)
+		println("${sr.tokenLineNumbers[i]} $tk")
 	}
 
 //	sr.skip(3)
