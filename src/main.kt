@@ -1,74 +1,6 @@
-import java.lang.foreign.Arena
-import java.lang.foreign.MemorySegment
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlin.io.path.Path
 import kotlin.io.path.readText
 import kotlin.properties.Delegates.observable
-
-class GrowBuffer (initialSize:Number)
-{
-
-	private var mem = MemorySegment.NULL
-	private var f = mem.asbb()
-	private var pretendSize = 0L
-
-	private fun MemorySegment.asbb ()
-		= this.asByteBuffer().order(ByteOrder.nativeOrder())
-
-	init
-	{
-		pretendSize = initialSize.toLong()
-		resize(pretendSize)
-	}
-
-	private fun resize (newSize:Long)
-	{
-		if (newSize <= mem.byteSize())
-		{
-			return
-		}
-		mem = Arena.ofAuto().allocate(newSize).copyFrom(mem)
-		f = with(mem.asbb()) {
-			position(f.position())
-			limit(f.limit())
-		}
-	}
-
-	private fun ensureCapacity (amount:Long)
-	{
-		val bs = mem.byteSize()
-		val newSz = bs+amount
-		if (newSz >= bs)
-		{
-			pretendSize = newSz
-			resize(newSz + (newSz ushr 1))
-		}
-	}
-
-	private inline fun
-	ensureCapacity (amount:Long, bloc: ByteBuffer.()->Unit)
-	{
-		ensureCapacity(amount)
-		f.apply(bloc)
-	}
-
-	fun writeU8 (char:Char)
-	{
-		writeU8(char.code)
-	}
-
-	fun writeU8 (value:Int)
-	{
-		ensureCapacity(1) {
-			put(value.toByte())
-		}
-	}
-
-
-}
-
-
 
 
 fun String.escapeilize ():String
@@ -198,7 +130,8 @@ open class StringReader(var text:String)
 
 class LStringReader(text: String): StringReader(text)
 {
-
+	val tokens = GrowBuffer(text.length)
+	val tokenRanges = mutableListOf<IntRange>()
 
 	fun peekIsNewline () = peek().let { it=='\r'||it=='\n' }
 
@@ -227,6 +160,8 @@ class LStringReader(text: String): StringReader(text)
 
 	fun readString (): String
 	{
+		// includes the starting delimiter for error messages
+		val stringBegin = tokens.tell()
 		val delimiter = read()
 		val outs = StringBuilder()
 		while (peek() != delimiter)
@@ -237,18 +172,18 @@ class LStringReader(text: String): StringReader(text)
 				'\\' -> {
 					when (val escCh = read())
 					{
-						'a' -> outs.append('\u0007')
-						'b' -> outs.append('\u0008')
-						'f' -> outs.append('\u000c')
-						'n' -> outs.append('\u000a')
-						'r' -> outs.append('\u000d')
-						't' -> outs.append('\u0009')
-						'v' -> outs.append('\u000b')
+						'a' -> tokens.writeInt('\u0007')
+						'b' -> tokens.writeInt('\u0008')
+						'f' -> tokens.writeInt('\u000c')
+						'n' -> tokens.writeInt('\u000a')
+						'r' -> tokens.writeInt('\u000d')
+						't' -> tokens.writeInt('\u0009')
+						'v' -> tokens.writeInt('\u000b')
 						'x' ->
 						{
 							val hi = read().hexToInt()
 							val lo = read().hexToInt()
-							outs.append(((hi shl 4) or lo).toChar())
+							tokens.writeInt(((hi shl 4) or lo).toChar())
 						}
 						'u' -> TODO("i dont feel like adding the utf8 esc stuff rn")
 
@@ -275,13 +210,20 @@ class LStringReader(text: String): StringReader(text)
 						}
 					}
 				}
-				else -> outs.append(ch)
+				else -> tokens.writeInt(ch)
 			}
 		}
-		return outs.toString()
+		tokens.writeInt(read()) // vore ending delimiter
+		return (stringBegin..tokens.tell()).run {
+			tokenRanges += this
+			tokens.memory.asSlice(start.toLong(), endInclusive-start+1L).getString(0L, Charsets.ISO_8859_1)
+		}
 	}
 
-
+	fun readMultilineString ()
+	{
+		TODO()
+	}
 
 }
 
@@ -293,8 +235,11 @@ const val TEST = (
 
 fun main ()
 {
-	val ub = Path("./assets/ubyte.txt").readText(Charsets.ISO_8859_1)
-	println(ub.escapeilize())
+	val sr = LStringReader(TEST)
+	val outs = sr.readString()
+	println(outs)
+//	val ub = Path("./assets/ubyte.txt").readText(Charsets.ISO_8859_1)
+//	println(ub.escapeilize())
 }
 
 
