@@ -32,22 +32,32 @@ open class StringReader(var text:String)
 	var lineNumber = 1
 
 	private var currDirty = true
-	private var curr = EOS
+	private var _cur = EOS
+	private var _pev = EOS-1
 
 	fun get (i:Int):Char
 	{
-		if (currDirty)
-		{
-			curr = text.getOrElse(i) { EOS }
-			currDirty = false
-		}
-		return curr
+		return text.getOrElse(i) { EOS }
 	}
 
 	fun skip () = cursor++
 	fun rewind () = cursor--
 
-	fun peek () = get(cursor)
+	fun pev (): Char
+	{
+		return _pev
+	}
+
+	fun peek (): Char
+	{
+		if (currDirty)
+		{
+			_pev = _cur
+			_cur = get(cursor)
+			currDirty = false
+		}
+		return _cur
+	}
 
 	fun read () = get(cursor++)
 
@@ -114,7 +124,7 @@ class LStringReader(text: String): StringReader(text)
 	{
 		val delimiter = read()
 		val outs = StringBuilder()
-		while (true)
+		while (peek() != delimiter)
 		{
 			when (val ch = read())
 			{
@@ -159,19 +169,21 @@ class LStringReader(text: String): StringReader(text)
 						}
 					}
 				}
+				else -> outs.append(ch)
 			}
 		}
+		return outs.toString()
 	}
 
 }
 
 
-const val TEST = """'This is a test\\n string!'"""
+const val TEST = "'This is a test\\n string!'"
 
 fun main ()
 {
 	val sr = LStringReader(TEST)
-//	println(sr.readString('\''))
+	println(sr.readString())
 }
 
 
