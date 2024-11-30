@@ -1,7 +1,74 @@
+import java.lang.foreign.Arena
+import java.lang.foreign.MemorySegment
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.io.path.Path
 import kotlin.io.path.readText
-import kotlin.io.path.writeBytes
 import kotlin.properties.Delegates.observable
+
+class GrowBuffer (initialSize:Number)
+{
+
+	private var mem = MemorySegment.NULL
+	private var f = mem.asbb()
+	private var pretendSize = 0L
+
+	private fun MemorySegment.asbb ()
+		= this.asByteBuffer().order(ByteOrder.nativeOrder())
+
+	init
+	{
+		pretendSize = initialSize.toLong()
+		resize(pretendSize)
+	}
+
+	private fun resize (newSize:Long)
+	{
+		if (newSize <= mem.byteSize())
+		{
+			return
+		}
+		mem = Arena.ofAuto().allocate(newSize).copyFrom(mem)
+		f = with(mem.asbb()) {
+			position(f.position())
+			limit(f.limit())
+		}
+	}
+
+	private fun ensureCapacity (amount:Long)
+	{
+		val bs = mem.byteSize()
+		val newSz = bs+amount
+		if (newSz >= bs)
+		{
+			pretendSize = newSz
+			resize(newSz + (newSz ushr 1))
+		}
+	}
+
+	private inline fun
+	ensureCapacity (amount:Long, bloc: ByteBuffer.()->Unit)
+	{
+		ensureCapacity(amount)
+		f.apply(bloc)
+	}
+
+	fun writeU8 (char:Char)
+	{
+		writeU8(char.code)
+	}
+
+	fun writeU8 (value:Int)
+	{
+		ensureCapacity(1) {
+			put(value.toByte())
+		}
+	}
+
+
+}
+
+
 
 
 fun String.escapeilize ():String
@@ -132,6 +199,7 @@ open class StringReader(var text:String)
 class LStringReader(text: String): StringReader(text)
 {
 
+
 	fun peekIsNewline () = peek().let { it=='\r'||it=='\n' }
 
 	fun voreNewline (doRewind:Boolean=false): Boolean
@@ -157,8 +225,6 @@ class LStringReader(text: String): StringReader(text)
 		return true
 	}
 
-	fun tryHexDigit () = read().hexToInt()
-
 	fun readString (): String
 	{
 		val delimiter = read()
@@ -178,12 +244,13 @@ class LStringReader(text: String): StringReader(text)
 						'r' -> outs.append('\u000d')
 						't' -> outs.append('\u0009')
 						'v' -> outs.append('\u000b')
-						'x' -> {
-							val hi = tryHexDigit()
-							val lo = tryHexDigit()
+						'x' ->
+						{
+							val hi = read().hexToInt()
+							val lo = read().hexToInt()
 							outs.append(((hi shl 4) or lo).toChar())
 						}
-						'u' -> TODO("i dont feel like adding all the utf8 esc stuff rn")
+						'u' -> TODO("i dont feel like adding the utf8 esc stuff rn")
 
 						'\r', '\n' -> outs.append('\n').also { voreNewline(true) }
 
@@ -213,6 +280,8 @@ class LStringReader(text: String): StringReader(text)
 		}
 		return outs.toString()
 	}
+
+
 
 }
 
