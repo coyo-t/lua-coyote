@@ -14,6 +14,15 @@ fun Char.hexToInt (): Int
 
 const val EOS = Char.MAX_VALUE
 
+val CONSIDERED_WHITESPACE = setOf(
+	'\u0009',
+	'\u000a',
+	'\u000b',
+	'\u000c',
+	'\u000d',
+	'\u0020',
+)
+
 class StringReader(var text:String)
 {
 	var cursor by observable(0) { _, _, _ ->
@@ -111,7 +120,7 @@ class StringReader(var text:String)
 						'\"', '\'', '\\' ->  outs.append(escCh)
 
 						'z' -> {
-							while (peek().isWhitespace())
+							while (peek() in CONSIDERED_WHITESPACE)
 							{
 								if (peekIsNewline())
 								{
