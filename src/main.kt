@@ -4,10 +4,7 @@ sealed class Token
 {
 	class Keyword private constructor (val kw: String): Token()
 	{
-		init
-		{
-			registered += kw
-		}
+		init { registered += kw }
 
 		companion object
 		{
@@ -61,48 +58,6 @@ val CONSIDERED_WHITESPACE = setOf(
 	'\u000d',
 	'\u0020',
 )
-
-enum class TKType
-{
-	KW_AND,
-	KW_BREAK,
-	KW_DO,
-	KW_ELSE,
-	KW_ELSEIF,
-	KW_END,
-	KW_FALSE,
-	KW_FOR,
-	KW_FUNCTION,
-	KW_GOTO,
-	KW_IF,
-	KW_IN,
-	KW_LOCAL,
-	KW_NIL,
-	KW_NOT,
-	KW_OR,
-	KW_REPEAT,
-	KW_RETURN,
-	KW_THEN,
-	KW_TRUE,
-	KW_UNTIL,
-	KW_WHILE,
-
-	`//`,
-	`..`,
-	`...`,
-	`==`,
-	`>=`,
-	`<=`,
-	`~=`,
-	`<<`,
-	`>>`,
-	`::`,
-
-	STRING_LITERAL,
-	INT_LITERAL,
-	IDENTIFIER,
-	NUMBER_LITERAL,
-}
 
 class LStringReader(text: String): StringReader(text)
 {
@@ -192,7 +147,7 @@ class LStringReader(text: String): StringReader(text)
 		tokenRanges += stringBegin..tokens.size
 		// vore ending delimiter
 		skip()
-		tokens += Token.StringLiteral(sb.toString())
+		tokens += Token.StringLiteral(sb.toString().also { println("string $it") })
 	}
 
 	/**
@@ -240,7 +195,7 @@ class LStringReader(text: String): StringReader(text)
 						tokens += if (isComment)
 							Token.Comment()
 						else
-							Token.StringLiteral(sb.toString())
+							Token.StringLiteral(sb.toString()).also { println("string ${it.body}") }
 						tokenRanges += start..(tell()-spacings)
 						return
 					}
@@ -275,7 +230,7 @@ fun main ()
 	val sr = LStringReader(MULTILINE)
 	sr.skip(3)
 	sr.readMultilineString(4, false)
-	println((sr.tokens.first() as? Token.StringLiteral)?.body)
+//	println((sr.tokens.first() as? Token.StringLiteral)?.body)
 //	val ub = Path("./assets/ubyte.txt").readText(Charsets.ISO_8859_1)
 //	println(ub.escapeilize())
 }
