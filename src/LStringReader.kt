@@ -92,11 +92,16 @@ class LStringReader(text: CharSequence): StringReader(text)
 									break
 								}
 								val ch = read()
+								if (ch == '\r' || ch == '\n')
+								{
+									voreNewline(true)
+									continue
+								}
 								if (ch !in HEXIDECIMAL_SYMBOLS)
 								{
 									continue
 								}
-								working = (working shl 4) or read().hexToInt()
+								working = (working shl 4) or ch.hexToInt()
 								if (even)
 								{
 									outs.put(working.toByte())

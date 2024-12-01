@@ -7,7 +7,8 @@ fun main ()
 	val sr = LStringReader(Path(
 		"./assets/testfiles",
 //		"octalnumbers"
-		"multiline"
+//		"multiline"
+		"bytearrayescapeseq"
 	).readText(Charsets.ISO_8859_1))
 
 	var tell = 0
