@@ -54,13 +54,23 @@ open class StringReader(var text:String)
 
 	fun read () = get(cursor++)
 
-	fun vore (expect:Char): Boolean
+	protected fun skipIf (condition: Boolean): Boolean
 	{
-		if (peek() == expect)
+		if (condition)
 		{
 			return true.also { skip() }
 		}
 		return false
+	}
+
+	fun vore (expect:Char): Boolean
+	{
+		return skipIf(peek() == expect)
+	}
+
+	fun voreIn (s:String): Boolean
+	{
+		return skipIf(peek() in s)
 	}
 
 	fun tell () = cursor

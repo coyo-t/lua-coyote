@@ -205,6 +205,17 @@ class LStringReader(text: String): StringReader(text)
 						}
 						'u' -> TODO("i dont feel like adding the utf8 esc stuff rn")
 
+						// hex bytearray, formatted as \${...}
+						// similar to long utf8 escape sequences being \u{...}
+						// should technically outmode the need for \# but
+						// people probably already have base64 strings and dont
+						// want to decode them manually
+						'$' -> TODO("inline bytearray data")
+
+						// base64 data escape, formatted as \#{...}
+						// similar to long utf8 escape sequences being \u{...}
+						'#' -> TODO("inline Base64 data")
+
 						'\r', '\n' -> sb.append('\n').also { voreNewline(true) }
 
 						'\"', '\'', '\\' ->  sb.append(escCh)
@@ -221,6 +232,14 @@ class LStringReader(text: String): StringReader(text)
 									skip()
 								}
 							}
+						}
+						' ' -> {
+							// non escape sequence.
+							// this does nothing and is for weird cases
+							// like a short utf8 that needs to be followed
+							// by a number, \u20\ 00 -> " 00"
+							// could also possibly be to make strings more readable
+							// in niche cases
 						}
 						else -> {
 							check(peek().isDigit()) { "Invalid escape sequence" }
@@ -346,6 +365,11 @@ class LStringReader(text: String): StringReader(text)
 		}
 	}
 
+	fun throwMalformNumber (): Nothing
+	{
+		throw RuntimeException("Malformed number literal")
+	}
+
 	fun lex ()
 	{
 		while (tell() <= text.length)
@@ -449,6 +473,76 @@ class LStringReader(text: String): StringReader(text)
 					tokens addzor Token.Symbol.DOT
 				}
 				in '0'..'9' -> {
+					val begin = tell()
+					skip()
+					if (ch == '0')
+					{
+						if (voreIn("xX"))
+						{
+							TODO("Hex literal")
+						}
+						else if (voreIn("bB"))
+						{
+							TODO("Binary literal")
+						}
+						else if (voreIn("oO"))
+						{
+							TODO("Octal literal(ly who'd use these)")
+						}
+						else if (voreIn("dD"))
+						{
+							TODO("Degrees->Radians literal")
+						}
+					}
+					var acc = 0L
+
+					var hasExponent = false
+					var exponent = 0L
+					var exponentSign = +1L
+
+					var hasFractionDot = false
+					var fraction = 0L
+					var fractionPlaces = 0
+					while (true)
+					{
+						if (vore('_'))
+						{
+							// ignore separator
+							// can probably result in weird edge
+							// cases that i dont feel like finding rn
+							continue
+						}
+						// exponent notation
+						if (voreIn("eE"))
+						{
+							if (vore('-'))
+							{
+								exponentSign = -1
+							}
+							else if (vore('+'))
+							{
+								// nothing, sign is already +1
+							}
+							else if (!peek().isDigit())
+							{
+								throwMalformNumber()
+							}
+
+						}
+						if (vore('.'))
+						{
+							if (hasFractionDot)
+							{
+								break
+							}
+							hasFractionDot = true
+							continue
+						}
+						val ch = peek()
+
+					}
+
+
 					TODO("Numberz")
 				}
 				EOS -> {
