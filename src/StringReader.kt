@@ -95,4 +95,10 @@ open class StringReader(var text:String)
 		return tell()-start
 	}
 
+	companion object
+	{
+		@JvmStatic
+		protected val EOS = Char.MAX_VALUE
+	}
+
 }

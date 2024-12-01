@@ -1,0 +1,15 @@
+local int_simple = 292202
+local int_exp = 1e6
+local int_exp_num = 1e-6
+local int_sep = 123_456_789
+
+local num_simple_1 = 292.202
+local num_simple_2 = 3.141
+local num_no_end = 4.
+local num_sep = 123_456.789
+local num_sep_weird_1 = 123._456
+local num_sep_weird_2 = 123_.456
+local num_sep_weird_3 = 123_.456
+local num_sep_weird_4 = 123.456_
+local num_sep_weird_6 = 1.0E-1_0
+local num_sep_weird_5 = 1__2__3_____.______45_6___

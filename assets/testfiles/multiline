@@ -1,0 +1,30 @@
+local test = "abcdeeznuts"
+local a = [[
+	Yeah what about it??
+]]
+local b = [[
+	this is a pretty long string eh?
+	uuhhhhhhh.
+	yeah.
+	probably.
+	haha, WOW!!!!!!
+]]
+local c = 'this is a \
+weirdo string that\
+continues itself with whacks'
+local dzz = 'this\32string\32has\32no\32spaces\32lol'
+
+if a == test then
+	print'Oigh jeez this guy agian'
+end
+-- this is a COMMENT!!!!!!
+do
+	thisis = notacomment
+end
+--[===[ this is
+	a SUPER
+	-- [[
+		sorry 2 interrupt :]
+	]]
+comment
+]===]
