@@ -1,13 +1,12 @@
 import kotlin.properties.Delegates
 
-open class StringReader(var text:String)
+open class StringReader(var text: CharSequence)
 {
 	var cursor by Delegates.observable(0) { _, _, _ ->
 		_currDirty = true
 	}
 
 	protected var _lineNumber = 1
-	protected var _mark = 0
 
 	private var _currDirty = true
 	private var _cur = EOS
@@ -16,11 +15,6 @@ open class StringReader(var text:String)
 	fun get (i:Int):Char
 	{
 		return text.getOrElse(i) { EOS }
-	}
-
-	fun markSkip ():Int
-	{
-		return mark().also { skip() }
 	}
 
 	fun skip () = cursor++
@@ -33,12 +27,6 @@ open class StringReader(var text:String)
 	fun pev (): Char
 	{
 		return _pev
-	}
-
-	fun mark (): Int
-	{
-		_mark = cursor
-		return _mark
 	}
 
 	fun currentLineNumber () = _lineNumber

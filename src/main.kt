@@ -10,10 +10,12 @@ fun main ()
 		"multiline"
 	).readText(Charsets.ISO_8859_1))
 
+	var tell = 0
+	var line = 0
 	while (true)
 	{
-		val tell = sr.tell()
-		val line = sr.currentLineNumber()
+		tell = sr.tell()
+		line = sr.currentLineNumber()
 		val tk = sr.lex()
 		if (tk == null)
 		{

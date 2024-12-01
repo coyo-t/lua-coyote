@@ -1,7 +1,7 @@
 import kotlin.math.pow
 
 
-class LStringReader(text: String): StringReader(text)
+class LStringReader(text: CharSequence): StringReader(text)
 {
 	val tokens = mutableListOf<Token>()
 	val tokenRanges = mutableListOf<IntRange>()
@@ -142,18 +142,6 @@ class LStringReader(text: String): StringReader(text)
 		val count = tell()-start
 		return if (count == 0) "" else text.substring(start, tell())
 	}
-
-	fun addToken (tk:Token)
-	{
-		tokens += tk
-		tokenLineNumbers += _lineNumber.._lineNumber
-		// i dont feel like managing this part rn so its
-		// lazy and not really working
-		tokenRanges += _mark..cursor
-	}
-
-	infix fun MutableList<Token>.addzor (tk:Token)
-		= addToken(tk)
 
 	/**
 	read a sequence '[=\*[' or ']=\*]', leaving the last bracket. If
@@ -466,7 +454,7 @@ class LStringReader(text: String): StringReader(text)
 				'\n', '\r' -> voreNewline()
 				' ', ESCF, '\t', ESCV -> skip()
 				'-' -> {
-					markSkip()
+					skip()
 					if (!vore('-'))
 					{
 						return Token.Symbol.DASH
@@ -478,12 +466,13 @@ class LStringReader(text: String): StringReader(text)
 						if (count >= 2)
 						{
 							readMultilineString(count, true)
-							return null
+							continue
 						}
 					}
 					// line comment
+					// mismatching line endings will get caught next loop
 					skipWhile { !peekIsNewline() && it != EOS }
-					return null
+					continue
 				}
 				'[' -> {
 					val count = voreMultilineBrackets()
