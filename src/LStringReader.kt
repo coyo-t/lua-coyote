@@ -637,6 +637,10 @@ class LStringReader(text: CharSequence): StringReader(text)
 		private val BINARY_DIGITS = ("01_").toSet()
 		private val OCTAL_DIGITS = ('0'..'7').toSet() + UNDERSCORE
 
+		private val BASE64_DIGITS = (
+			ALPHABETICAL_SYMBOLS + DIGIT_SYMBOLS + setOf('=', '/', '+')
+		)
+
 		private val CONSIDERED_WHITESPACE = setOf(
 			'\u0009', // t
 			'\u000a', // n
