@@ -1,3 +1,5 @@
+import kotlin.math.pow
+
 // https://en.cppreference.com/w/c/language/escape
 const val EOS = Char.MAX_VALUE
 
@@ -92,14 +94,15 @@ sealed class Token
 	{
 		override fun toString(): String
 		{
-			TODO()
+			return "<Int Literal: $value >"
 		}
 	}
 	class NumberLiteral (val value:Double): Token()
 	{
 		override fun toString(): String
 		{
-			TODO()
+			return "Number Literal: $value >"
+//			return "Number Literal: %.8f >".format(value)
 		}
 	}
 	class Identifier (val name:String):Token()
@@ -365,7 +368,7 @@ class LStringReader(text: String): StringReader(text)
 		}
 	}
 
-	fun throwMalformNumber (): Nothing
+	fun throwMalformedNumber (): Nothing
 	{
 		throw RuntimeException("Malformed number literal")
 	}
@@ -474,9 +477,9 @@ class LStringReader(text: String): StringReader(text)
 				}
 				in '0'..'9' -> {
 					val begin = tell()
-					skip()
 					if (ch == '0')
 					{
+						skip()
 						if (voreIn("xX"))
 						{
 							TODO("Hex literal")
@@ -493,12 +496,12 @@ class LStringReader(text: String): StringReader(text)
 						{
 							TODO("Degrees->Radians literal")
 						}
+						rewind()
 					}
-					var acc = 0L
-
+					var intAcc = 0L
 					var hasExponent = false
-					var exponent = 0L
-					var exponentSign = +1L
+					var exponent = 0
+					var exponentSign = +1
 
 					var hasFractionDot = false
 					var fraction = 0L
@@ -515,6 +518,7 @@ class LStringReader(text: String): StringReader(text)
 						// exponent notation
 						if (voreIn("eE"))
 						{
+							hasExponent = true
 							if (vore('-'))
 							{
 								exponentSign = -1
@@ -525,9 +529,16 @@ class LStringReader(text: String): StringReader(text)
 							}
 							else if (!peek().isDigit())
 							{
-								throwMalformNumber()
+								throwMalformedNumber()
 							}
-
+							while (peek().let { it.isDigit() || it == '_' })
+							{
+								val ch = read()
+								if (ch != '_')
+								{
+									exponent = exponent * 10 + (ch - '0')
+								}
+							}
 						}
 						if (vore('.'))
 						{
@@ -539,11 +550,56 @@ class LStringReader(text: String): StringReader(text)
 							continue
 						}
 						val ch = peek()
-
+						if (!ch.isDigit())
+						{
+							break
+						}
+						val digit = (ch - '0').toInt()
+						skip()
+						if (hasFractionDot)
+						{
+							fraction = fraction * 10 + digit
+							fractionPlaces++
+						}
+						else
+						{
+							intAcc = intAcc * 10 + digit
+						}
 					}
 
+					var numAcc = 0.0
+					var intWasMadeNumber = false
+					if (hasExponent)
+					{
+						if (exponentSign > 0)
+						{
+							intAcc = intAcc * ((10.0).pow(exponent)).toInt()
+						}
+						else
+						{
+							numAcc = intAcc.toDouble() * (10.0).pow(exponent*exponentSign)
+							intWasMadeNumber = true
+						}
+					}
 
-					TODO("Numberz")
+					if (!hasFractionDot && !intWasMadeNumber)
+					{
+						if (intAcc !in Int.MIN_VALUE..Int.MAX_VALUE)
+						{
+							throw RuntimeException("Int literal doesnt fit!")
+						}
+						tokens addzor Token.IntLiteral(intAcc.toInt())
+						continue
+					}
+					if (!intWasMadeNumber)
+					{
+						numAcc = intAcc.toDouble()
+					}
+					if (hasFractionDot)
+					{
+						numAcc += fraction.toDouble() / 10.0.pow(fractionPlaces.toDouble())
+					}
+					tokens addzor Token.NumberLiteral(numAcc)
 				}
 				EOS -> {
 					tokens addzor Token.EndOfStream
@@ -552,7 +608,7 @@ class LStringReader(text: String): StringReader(text)
 				else -> {
 					if (ch in OKAY_TO_START_IDENTIFIER)
 					{
-						val id = voreWhile { it in OKAY_TO_START_IDENTIFIER }
+						val id = voreWhile { it in IDENTIFIER_SYMBOLS }
 						tokens addzor if (id in Token.Keyword)
 							Token.Keyword[id]
 						else
@@ -604,14 +660,43 @@ comment
 ]===]
 """.trimIndent()
 
+
+val NUMBERSTEST = """
+	local int_simple = 292202
+	local int_exp = 1e6
+	local int_exp_num = 1e-6
+	local int_sep = 123_456_789
+	
+	local num_simple_1 = 292.202
+	local num_simple_2 = 3.141
+	local num_no_end = 4.
+	local num_sep = 123_456.789
+	local num_sep_weird_1 = 123._456
+	local num_sep_weird_2 = 123_.456
+	local num_sep_weird_3 = 123_.456
+	local num_sep_weird_4 = 123.456_
+	local num_sep_weird_6 = 1.0E-1_0
+	local num_sep_weird_5 = 1__2__3_____.______45_6___
+""".trimIndent()
+
 fun main ()
 {
-	val sr = LStringReader(MULTILINE)
+	val sr = LStringReader(
+//		MULTILINE
+		NUMBERSTEST
+	)
 	sr.lex()
 
+	var just = false
 	for ((i, tk) in sr.tokens.withIndex())
 	{
-		println("${sr.tokenLineNumbers[i]} $tk")
+		var ads = ""
+		if (tk is Token.NumberLiteral || tk is Token.IntLiteral)
+		{
+			ads = "\t"
+		}
+		just = false
+		println("$ads${sr.tokenLineNumbers[i]} $tk")
 	}
 
 //	sr.skip(3)
