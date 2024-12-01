@@ -224,7 +224,19 @@ class LStringReader(text: String): StringReader(text)
 						}
 						else -> {
 							check(peek().isDigit()) { "Invalid escape sequence" }
-							TODO("dont feel like adding decimal esc seqs")
+
+							rewind()
+							var acc = 0
+							for (i in 1..3)
+							{
+								if (!peek().isDigit())
+								{
+									break
+								}
+								acc = acc * 10 + (read() - '0')
+							}
+							check (acc <= UByte.MAX_VALUE.toInt()) { "Decimal escape sequence value of $acc too large" }
+							sb.append(acc.toChar())
 						}
 					}
 				}
@@ -480,6 +492,7 @@ local b = [[
 local c = 'this is a \
 weirdo string that\
 continues itself with whacks'
+local dzz = 'this\32string\32has\32no\32spaces\32lol'
 
 if a == test then
 	print'Oigh jeez this guy agian'
