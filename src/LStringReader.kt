@@ -122,7 +122,63 @@ class LStringReader(text: CharSequence): StringReader(text)
 
 						// base64 data escape, formatted as \#{...}
 						// similar to long utf8 escape sequences being \u{...}
-						'#' -> TODO("inline Base64 data")
+						'#' -> {
+							if (!vore('{'))
+							{
+								throw RuntimeException("Expected a {")
+							}
+							// the data the base64 string encodes literally
+							// cant be longer than the string itself so this
+							// is a lazy approximation. would be better to count
+							// the characters first but whatever
+							// maybe the lexer should have a secondary "scratch"
+							// buffer the same length of the string
+							val outs = ByteBuffer.allocateDirect(text.length)
+
+							var bits = 0
+							var working = 0
+							while (true)
+							{
+								if (vore(EOS))
+								{
+									throw RuntimeException("Unfinished base64 literal")
+								}
+								if (vore('}'))
+								{
+									break
+								}
+								val ch = read()
+								if (ch == '\r' || ch == '\n')
+								{
+									voreNewline(true)
+									continue
+								}
+								if (ch !in BASE64_DIGITS)
+								{
+									continue
+								}
+								if (ch != '=')
+								{
+									working = (working shl 6) + ch.base64ToInt()
+								}
+								bits += 6
+								if (bits >= 8)
+								{
+									outs.put(working.toByte())
+									bits -= 8
+								}
+							}
+							// esc data wasnt padded with ='s
+							// while the padding isnt nessicary, im making it
+							// required anyway. bite me.
+							// raise an error to the user as this might be a copy-paste
+							// error
+							check(bits == 0) { "Base64 data not padded" }
+
+							outs.flip()
+							val ob = ByteArray(outs.limit()).apply { outs.get(this) }
+							sb.append(String(ob, Charsets.ISO_8859_1))
+						}
 
 						'\r', '\n' -> sb.append('\n').also { voreNewline(true) }
 
