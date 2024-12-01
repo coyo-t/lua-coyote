@@ -8,7 +8,8 @@ fun main ()
 		"./assets/testfiles",
 //		"octalnumbers"
 //		"multiline"
-		"bytearrayescapeseq"
+//		"bytearrayescapeseq"
+		"base64esc"
 	).readText(Charsets.ISO_8859_1))
 
 	var tell = 0

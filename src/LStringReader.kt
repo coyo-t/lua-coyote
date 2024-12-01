@@ -72,6 +72,11 @@ class LStringReader(text: CharSequence): StringReader(text)
 							{
 								throw RuntimeException("Expected a {")
 							}
+							if (vore('}'))
+							{
+								// short circuit
+								continue
+							}
 							// hex data literally cant be larger than half the string's
 							// length anyway (as one byte in text is
 							// represented with two bytes). it would be
@@ -127,6 +132,11 @@ class LStringReader(text: CharSequence): StringReader(text)
 							{
 								throw RuntimeException("Expected a {")
 							}
+							if (vore('}'))
+							{
+								// short circuit
+								continue
+							}
 							// the data the base64 string encodes literally
 							// cant be longer than the string itself so this
 							// is a lazy approximation. would be better to count
@@ -157,15 +167,21 @@ class LStringReader(text: CharSequence): StringReader(text)
 								{
 									continue
 								}
+								working = working shl 6
 								if (ch != '=')
 								{
-									working = (working shl 6) + ch.base64ToInt()
+									working = working or ch.base64ToInt()
 								}
 								bits += 6
-								if (bits >= 8)
+								if (bits >= 24)
 								{
-									outs.put(working.toByte())
-									bits -= 8
+									with (outs)
+									{
+										put((working ushr 16).toByte())
+										put((working ushr 8).toByte())
+										put(working.toByte())
+									}
+									bits = 0
 								}
 							}
 							// esc data wasnt padded with ='s
