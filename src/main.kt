@@ -1,3 +1,4 @@
+import java.lang.Math.toRadians
 import kotlin.math.pow
 
 // https://en.cppreference.com/w/c/language/escape
@@ -132,12 +133,15 @@ val ALPHABETICAL_SYMBOLS = (
 	('A'..'Z').toSet()
 )
 val DIGIT_SYMBOLS = ('0'..'9').toSet()
+val FLOAT_DIGITS = DIGIT_SYMBOLS + setOf('.')
 
 val OKAY_TO_START_IDENTIFIER = ALPHABETICAL_SYMBOLS + UNDERSCORE
 
 val IDENTIFIER_SYMBOLS = OKAY_TO_START_IDENTIFIER + DIGIT_SYMBOLS
 val HEXIDECIMAL_SYMBOLS = ALPHABETICAL_SYMBOLS + UNDERSCORE + DIGIT_SYMBOLS
 
+val BINARY_DIGITS = ("01_").toSet()
+val OCTAL_DIGITS = ('0'..'7').toSet() + UNDERSCORE
 
 val CONSIDERED_WHITESPACE = setOf(
 	'\u0009', // t
@@ -482,19 +486,91 @@ class LStringReader(text: String): StringReader(text)
 						skip()
 						if (voreIn("xX"))
 						{
-							TODO("Hex literal")
+							// TODO: hex fractions, ie 0x100.292FE
+							var acc = 0L
+							while (peek() in HEXIDECIMAL_SYMBOLS)
+							{
+								val ch = read()
+								if (ch != '_')
+								{
+									acc = (acc shl 4) or ch.hexToInt().toLong()
+								}
+							}
+							tokens addzor Token.IntLiteral(acc.toInt())
+							continue
 						}
 						else if (voreIn("bB"))
 						{
-							TODO("Binary literal")
+							// TODO: binary fractions, ie 0b110.101
+							var acc = 0L
+							while (peek() in BINARY_DIGITS)
+							{
+								val ch = read()
+								if (ch != '_')
+								{
+									acc = acc shl 1
+									if (ch == '1')
+									{
+										acc += 1
+									}
+								}
+							}
+							tokens addzor Token.IntLiteral(acc.toInt())
+							continue
 						}
 						else if (voreIn("oO"))
 						{
-							TODO("Octal literal(ly who'd use these)")
+							// TODO: octal fractions, ie 0o712.113
+							var acc = 0L
+							while (peek() in OCTAL_DIGITS)
+							{
+								val ch = read()
+								if (ch != '_')
+								{
+									acc = (acc shl 3) + (ch - '0')
+								}
+							}
+							tokens addzor Token.IntLiteral(acc.toInt())
+							continue
 						}
 						else if (voreIn("dD"))
 						{
-							TODO("Degrees->Radians literal")
+							var acc = 0L
+							var wholePart = 0L
+							var fractPlaces = -1
+							var hasFrac = false
+							while (peek() in FLOAT_DIGITS)
+							{
+								if (vore('.'))
+								{
+									if (hasFrac)
+									{
+										break
+									}
+									fractPlaces = tell()
+									hasFrac = true
+									wholePart = acc
+									acc = 0L
+									continue
+								}
+								val ch = read()
+								if (ch != '_')
+								{
+									acc = (acc * 10) + (ch - '0')
+								}
+								else
+								{
+									fractPlaces++
+								}
+							}
+
+							var number = (if (hasFrac) wholePart else acc).toDouble()
+							if (hasFrac)
+							{
+								number = number + acc / 10.0.pow(tell()-fractPlaces)
+							}
+							tokens addzor Token.NumberLiteral(toRadians(number))
+							continue
 						}
 						rewind()
 					}
@@ -505,7 +581,7 @@ class LStringReader(text: String): StringReader(text)
 
 					var hasFractionDot = false
 					var fraction = 0L
-					var fractionPlaces = 0
+					var fractionPlaces = -1
 					while (true)
 					{
 						if (vore('_'))
@@ -513,6 +589,7 @@ class LStringReader(text: String): StringReader(text)
 							// ignore separator
 							// can probably result in weird edge
 							// cases that i dont feel like finding rn
+							fractionPlaces++
 							continue
 						}
 						// exponent notation
@@ -546,6 +623,7 @@ class LStringReader(text: String): StringReader(text)
 							{
 								break
 							}
+							fractionPlaces = tell()
 							hasFractionDot = true
 							continue
 						}
@@ -559,7 +637,6 @@ class LStringReader(text: String): StringReader(text)
 						if (hasFractionDot)
 						{
 							fraction = fraction * 10 + digit
-							fractionPlaces++
 						}
 						else
 						{
@@ -584,10 +661,10 @@ class LStringReader(text: String): StringReader(text)
 
 					if (!hasFractionDot && !intWasMadeNumber)
 					{
-						if (intAcc !in Int.MIN_VALUE..Int.MAX_VALUE)
-						{
-							throw RuntimeException("Int literal doesnt fit!")
-						}
+//						if (intAcc !in Int.MIN_VALUE..Int.MAX_VALUE)
+//						{
+//							throw RuntimeException("Int literal doesnt fit!")
+//						}
 						tokens addzor Token.IntLiteral(intAcc.toInt())
 						continue
 					}
@@ -597,7 +674,7 @@ class LStringReader(text: String): StringReader(text)
 					}
 					if (hasFractionDot)
 					{
-						numAcc += fraction.toDouble() / 10.0.pow(fractionPlaces.toDouble())
+						numAcc += fraction.toDouble() / 10.0.pow(tell()-fractionPlaces)
 					}
 					tokens addzor Token.NumberLiteral(numAcc)
 				}
@@ -679,11 +756,48 @@ val NUMBERSTEST = """
 	local num_sep_weird_5 = 1__2__3_____.______45_6___
 """.trimIndent()
 
+val NUMBER_HEX_TESTS = """
+	a = 0x20
+	b = 0x292202
+	c = 0xFF
+	d = 0xFF_FF
+	e = 0xFF_FFFF
+	f = 0xFFFF_FFFF
+""".trimIndent()
+
+val NUMBER_BIN_TESTS = """
+	a = 0b1111
+	b = 0b00_00
+	c = 0b0001
+""".trimIndent()
+
+val NUMBER_OCTAL_TESTS = """
+	a = 0o0
+	a = 0o0_7
+	b = 0O10
+	c = 0o20
+	d = 0o30
+""".trimIndent()
+
+val NUMBER_DEGREES_TESTS = """
+	a = 0d0.0
+	a = 0d11.25
+	a = 0d22.5
+	a = 0d45
+	a = 0d90
+	a = 0d180
+	a = 0d360
+""".trimIndent()
+
 fun main ()
 {
 	val sr = LStringReader(
 //		MULTILINE
-		NUMBERSTEST
+//		NUMBERSTEST
+//		NUMBER_HEX_TESTS
+//		NUMBER_BIN_TESTS
+//		NUMBER_OCTAL_TESTS
+		NUMBER_DEGREES_TESTS
 	)
 	sr.lex()
 
