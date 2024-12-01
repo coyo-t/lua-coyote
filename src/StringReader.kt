@@ -17,6 +17,11 @@ open class StringReader(var text: CharSequence)
 		return text.getOrElse(i) { EOS }
 	}
 
+	fun seek (to:Int)
+	{
+		cursor = to
+	}
+
 	fun skip () = cursor++
 	fun skip (amount:Int)
 	{

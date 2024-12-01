@@ -1,3 +1,5 @@
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.math.pow
 
 
@@ -55,8 +57,8 @@ class LStringReader(text: CharSequence): StringReader(text)
 						'v' -> sb.append('\u000b')
 						'x' ->
 						{
-							val hi = read().hexToInt()
-							val lo = read().hexToInt()
+							val hi = read().hexToIntOrThrow()
+							val lo = read().hexToIntOrThrow()
 							sb.append(((hi shl 4) or lo).toChar())
 						}
 						'u' -> TODO("i dont feel like adding the utf8 esc stuff rn")
@@ -66,7 +68,46 @@ class LStringReader(text: CharSequence): StringReader(text)
 						// should technically outmode the need for \# but
 						// people probably already have base64 strings and dont
 						// want to decode them manually
-						'$' -> TODO("inline bytearray data")
+						'$' -> {
+							if (!vore('{'))
+							{
+								throw RuntimeException("Expected a {")
+							}
+							// hex data literally cant be larger than half the string's
+							// length anyway (as one byte in text is
+							// represented with two bytes). it would be
+							// better to count the bytes first, but this
+							// is "fine" as a solution for a niche escape sequence
+							val outs = ByteBuffer.allocateDirect(text.length)
+
+							var working = 0
+							var even = false
+							while (true)
+							{
+								if (vore(EOS))
+								{
+									throw RuntimeException("Unfinished hex data literal")
+								}
+								if (vore('}'))
+								{
+									break
+								}
+								working = (working shl 4) or read().hexToInt()
+								if (even)
+								{
+									outs.put(working.toByte())
+								}
+								even = !even
+							}
+							// esc data was unevenly balanced, IE
+							// \${FF FF F}
+							// there are a few ways to handle this, but in this case
+							// raise an error to the user as this might be a copy-paste
+							// error
+							check(!even) { "Hex data literal uneven" }
+
+							TODO("inline bytearray data")
+						}
 
 						// base64 data escape, formatted as \#{...}
 						// similar to long utf8 escape sequences being \u{...}
@@ -223,7 +264,7 @@ class LStringReader(text: CharSequence): StringReader(text)
 			val ch = read()
 			if (ch != '_')
 			{
-				acc = (acc shl 4) or ch.hexToInt().toLong()
+				acc = (acc shl 4) or ch.hexToIntOrThrow().toLong()
 			}
 		}
 		return Token.IntLiteral(acc.toInt())
