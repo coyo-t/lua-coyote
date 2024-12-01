@@ -32,7 +32,7 @@ class LStringReader(text: String): StringReader(text)
 		return true
 	}
 
-	fun readString (delimiter:Char)
+	fun readString (delimiter:Char): Token
 	{
 		// includes the starting delimiter for error messages
 		val stringBegin = tokens.size
@@ -123,7 +123,7 @@ class LStringReader(text: String): StringReader(text)
 		tokenLineNumbers += lineBegin.._lineNumber
 		// vore ending delimiter
 		skip()
-		tokens += Token.StringLiteral(sb.toString())//.also { println("string $it") })
+		return Token.StringLiteral(sb.toString())//.also { println("string $it") })
 	}
 
 	fun voreNext (expect:Char): Boolean
@@ -177,7 +177,7 @@ class LStringReader(text: String): StringReader(text)
 		}
 	}
 
-	fun readMultilineString (spacings:Int, isComment: Boolean)
+	fun readMultilineString (spacings:Int, isComment: Boolean):Token?
 	{
 		// second [
 		skip()
@@ -199,11 +199,11 @@ class LStringReader(text: String): StringReader(text)
 						skip()
 						if (!isComment)
 						{
-							tokens += Token.StringLiteral(sb.toString())
 							tokenRanges += start..(tell()-spacings)
 							tokenLineNumbers += startLine.._lineNumber
+							return Token.StringLiteral(sb.toString())
 						}
-						return
+						return null
 					}
 					sb.append(ch)
 				}
@@ -456,7 +456,8 @@ class LStringReader(text: String): StringReader(text)
 		return Token.Symbol.DOT
 	}
 
-	fun lex ()
+
+	fun lex (): Token?
 	{
 		while (true)
 		{
@@ -468,8 +469,7 @@ class LStringReader(text: String): StringReader(text)
 					markSkip()
 					if (!vore('-'))
 					{
-						tokens addzor Token.Symbol.DASH
-						continue
+						return Token.Symbol.DASH
 					}
 					if (peek() == '[')
 					{
@@ -478,34 +478,35 @@ class LStringReader(text: String): StringReader(text)
 						if (count >= 2)
 						{
 							readMultilineString(count, true)
-							continue
+							return null
 						}
 					}
 					// line comment
 					skipWhile { !peekIsNewline() && it != EOS }
+					return null
 				}
 				'[' -> {
 					val count = voreMultilineBrackets()
 					if (count >= 2)
 					{
-						readMultilineString(count, false)
-						continue
+						return readMultilineString(count, false)
 					}
 					if (count == 0)
 					{
 						throw RuntimeException("invalid multiline string delimiter")
 					}
-					tokens addzor Token.Symbol.LBRACKET
+					return Token.Symbol.LBRACKET
 				}
 				'=' -> {
-					tokens addzor if (voreNext('='))
+					skip()
+					return if (vore('='))
 						Token.Symbol.DOUBLEEQ
 					else
 						Token.Symbol.EQ
 				}
 				'<' -> {
 					skip()
-					tokens addzor if (vore('='))
+					return if (vore('='))
 						Token.Symbol.LEQ
 					else if (vore('<'))
 						Token.Symbol.LSH
@@ -513,8 +514,8 @@ class LStringReader(text: String): StringReader(text)
 						Token.Symbol.LT
 				}
 				'>' -> {
-					markSkip()
-					tokens addzor if (vore('='))
+					skip()
+					return if (vore('='))
 						Token.Symbol.GEQ
 					else if (vore('>'))
 						Token.Symbol.RSH
@@ -522,49 +523,50 @@ class LStringReader(text: String): StringReader(text)
 						Token.Symbol.GT
 				}
 				'/' -> {
-					tokens addzor if (voreNext('/'))
+					skip()
+					return if (vore('/'))
 						Token.Symbol.DOUBLESLASH
 					else
 						Token.Symbol.SLASH
 				}
 				'~' -> {
-					tokens addzor if (voreNext('='))
+					skip()
+					return if (vore('='))
 						Token.Symbol.NEQ
 					else
 						Token.Symbol.SQUIGGLE
 				}
 				':' -> {
-					tokens addzor if (voreNext(':'))
+					skip()
+					return if (vore(':'))
 						Token.Symbol.DOUBLECOLON
 					else
 						Token.Symbol.COLON
 				}
 				'\"', '\'' -> {
 					skip()
-					readString(ch)
+					return readString(ch)
 				}
 				'.' -> {
 					skip()
-					tokens addzor handleDot()
+					return handleDot()
 				}
-				in '0'..'9' -> tokens addzor readNumericLiteral()
+				in '0'..'9' -> return readNumericLiteral()
 
 				EOS -> {
-					tokens addzor Token.EndOfStream
-					break
+					return Token.EndOfStream
 				}
 				else -> {
 					if (ch in OKAY_TO_START_IDENTIFIER)
 					{
 						val id = voreWhile { it in IDENTIFIER_SYMBOLS }
-						tokens addzor if (id in Token.Keyword)
+						return if (id in Token.Keyword)
 							Token.Keyword[id]
 						else
 							Token.Identifier(id)
-						continue
 					}
 					// misc symbol
-					tokens addzor Token.Symbol(ch)
+					return Token.Symbol(ch)
 				}
 			}
 		}

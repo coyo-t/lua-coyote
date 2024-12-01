@@ -41,6 +41,8 @@ open class StringReader(var text:String)
 		return _mark
 	}
 
+	fun currentLineNumber () = _lineNumber
+
 	fun peek (): Char
 	{
 		if (_currDirty)

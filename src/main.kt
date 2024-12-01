@@ -9,18 +9,30 @@ fun main ()
 //		"octalnumbers"
 		"multiline"
 	).readText(Charsets.ISO_8859_1))
-	sr.lex()
 
-	var just = false
-	for ((i, tk) in sr.tokens.withIndex())
+	while (true)
 	{
+		val tell = sr.tell()
+		val line = sr.currentLineNumber()
+		val tk = sr.lex()
+		if (tk == null)
+		{
+			continue
+		}
+
+//		sr.addToken(tk)
+
 		var ads = ""
 		if (tk is Token.NumberLiteral || tk is Token.IntLiteral)
 		{
 			ads = "\t"
 		}
-		just = false
-		println("$ads${sr.tokenLineNumbers[i]} $tk")
+		println("$ads${line..sr.currentLineNumber()} $tk")
+
+		if (tk == Token.EndOfStream)
+		{
+			break
+		}
 	}
 }
 
