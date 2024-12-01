@@ -379,7 +379,7 @@ class LStringReader(text: String): StringReader(text)
 
 	fun lex ()
 	{
-		while (tell() <= text.length)
+		while (true)
 		{
 			when (val ch = peek())
 			{
