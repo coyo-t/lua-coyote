@@ -442,7 +442,19 @@ class LStringReader(text: String): StringReader(text)
 		return Token.NumberLiteral(numAcc)
 	}
 
-
+	fun handleDot (): Token
+	{
+		if (vore('.'))
+		{
+			if (vore('.'))
+			{
+				return Token.Symbol.ELLIPSIS
+			}
+			return Token.Symbol.CONCAT
+		}
+		// disallow leading-zeroless decimals
+		return Token.Symbol.DOT
+	}
 
 	fun lex ()
 	{
@@ -532,19 +544,8 @@ class LStringReader(text: String): StringReader(text)
 					readString(ch)
 				}
 				'.' -> {
-					markSkip()
-					if (vore('.'))
-					{
-						if (vore('.'))
-						{
-							tokens addzor Token.Symbol.ELLIPSIS
-							continue
-						}
-						tokens addzor Token.Symbol.CONCAT
-						continue
-					}
-					// disallow leading-zeroless decimals
-					tokens addzor Token.Symbol.DOT
+					skip()
+					tokens addzor handleDot()
 				}
 				in '0'..'9' -> tokens addzor readNumericLiteral()
 

@@ -6,7 +6,8 @@ fun main ()
 {
 	val sr = LStringReader(Path(
 		"./assets/testfiles",
-		"octalnumbers"
+//		"octalnumbers"
+		"multiline"
 	).readText(Charsets.ISO_8859_1))
 	sr.lex()
 
