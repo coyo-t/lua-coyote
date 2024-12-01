@@ -1,5 +1,4 @@
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import kotlin.math.pow
 
 
@@ -92,6 +91,11 @@ class LStringReader(text: CharSequence): StringReader(text)
 								{
 									break
 								}
+								val ch = read()
+								if (ch !in HEXIDECIMAL_SYMBOLS)
+								{
+									continue
+								}
 								working = (working shl 4) or read().hexToInt()
 								if (even)
 								{
@@ -106,7 +110,9 @@ class LStringReader(text: CharSequence): StringReader(text)
 							// error
 							check(!even) { "Hex data literal uneven" }
 
-							TODO("inline bytearray data")
+							outs.flip()
+							val ob = ByteArray(outs.limit()).apply { outs.get(this) }
+							sb.append(String(ob, Charsets.ISO_8859_1))
 						}
 
 						// base64 data escape, formatted as \#{...}
