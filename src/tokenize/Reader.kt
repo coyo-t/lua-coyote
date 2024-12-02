@@ -6,7 +6,7 @@ import java.nio.file.Path
 import kotlin.io.path.readBytes
 import kotlin.properties.Delegates
 
-open class StringReader (text: Path)
+open class Reader (text: Path)
 {
 
 	val data = run {

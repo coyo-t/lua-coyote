@@ -6,7 +6,7 @@ import java.nio.file.Path
 import kotlin.math.pow
 
 
-class LStringReader(path: Path): StringReader(path)
+class LStringReader(path: Path): Reader(path)
 {
 	val tokens = mutableListOf<Token>()
 	val tokenRanges = mutableListOf<IntRange>()
@@ -862,13 +862,5 @@ class LStringReader(path: Path): StringReader(path)
 		private fun isWhitespace (ch:Char)
 			= ch == ' ' || (ch in '\u0009'..'\u000d')
 
-		private val CONSIDERED_WHITESPACE = setOf(
-			'\u0009', // t
-			'\u000a', // n
-			'\u000b', // v
-			'\u000c', // f
-			'\u000d', // r
-			'\u0020', // space
-		)
 	}
 }
