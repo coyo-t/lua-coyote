@@ -711,7 +711,7 @@ class LStringReader(path: Path): StringReader(path)
 	}
 
 
-	fun lex (): Token?
+	fun lex (): Token
 	{
 		while (true)
 		{
@@ -744,7 +744,7 @@ class LStringReader(path: Path): StringReader(path)
 					val count = voreMultilineBrackets()
 					if (count >= 2)
 					{
-						return readMultilineString(count, false)
+						return readMultilineString(count, false)!!
 					}
 					if (count == 0)
 					{

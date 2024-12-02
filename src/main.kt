@@ -25,10 +25,6 @@ fun main ()
 		tell = sr.tell()
 		line = sr.currentLineNumber()
 		val tk = sr.lex()
-		if (tk == null)
-		{
-			continue
-		}
 
 		tokens += tk
 
