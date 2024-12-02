@@ -82,6 +82,281 @@ class LStringReader(path: Path): StringReader(path)
 		return true
 	}
 
+	fun doUtf8EscSequenceThing()
+	{
+		//							TODO("not working right")
+		if (vore('{'))
+		{
+			TODO("long unicode escape sequences not implemented")
+		}
+		// require at least one digit
+		var FUCKCH = read()
+		var acc = FUCKCH.hexToIntOrThrow()
+		// up to 4
+		for (i in 1..3)
+		{
+			val ch = peek().hexToInt()
+			if (ch < 0)
+			{
+				break
+			}
+			skip()
+			acc = (acc shl 4) or ch
+		}
+
+		if (acc < 0x80)
+		{
+			// already an ascii value, just add it to the
+			// stringbuilder
+			tempPutInt(acc)
+		}
+		else
+		{
+			// 8 is overkill, longest utf8 encoded value tmk is 4 bytes
+			val outs = ByteBuffer.allocateDirect(8).order(ByteOrder.nativeOrder())
+
+			// number of bytes put (backwards) into buffer
+			var n = 1
+			var mfb = 0x3F
+			do
+			{
+				// add continuator bytes
+				outs.put(
+					outs.capacity() - (n++),
+					(0x80 or (acc and 0x3F)).toByte()
+				)
+				// remove added bits
+				acc = acc ushr 6
+				// now there's one less bit available in first byte
+				mfb = mfb ushr 1
+				// vv still needs continue byte?
+			} while (acc > mfb)
+			// add first byte
+			outs.put(
+				outs.capacity() - n,
+				((mfb.inv() shl 1) or acc).toByte()
+			)
+			outs.flip()
+			(1..outs.limit()).forEach {
+				tempPutInt(outs.get().toInt() and 0xFF)
+			}
+		}
+	}
+
+	fun doByteArrayEscSequenceThing()
+	{
+		// hex bytearray, formatted as \${...}
+		// similar to long utf8 escape sequences being \u{...}
+		// should technically outmode the need for \# but
+		// people probably already have base64 strings and dont
+		// want to decode them manually
+		if (!vore('{'))
+		{
+			throw RuntimeException("Expected a {")
+		}
+		if (vore('}'))
+		{
+			// short circuit
+			return
+		}
+		// hex data literally cant be larger than half the string's
+		// length anyway (as one byte in text is
+		// represented with two bytes). it would be
+		// better to count the bytes first, but this
+		// is "fine" as a solution for a niche escape sequence
+		val outs = ByteBuffer.allocateDirect(size)
+
+		var working = 0
+		var even = false
+		while (true)
+		{
+			if (vore(EOS))
+			{
+				throw RuntimeException("Unfinished hex data literal")
+			}
+			if (vore('}'))
+			{
+				break
+			}
+			val ch = read()
+			if (ch == '\r' || ch == '\n')
+			{
+				voreNewline(true)
+				continue
+			}
+			if (ch !in HEXIDECIMAL_SYMBOLS)
+			{
+				continue
+			}
+			working = (working shl 4) or ch.hexToInt()
+			if (even)
+			{
+				outs.put(working.toByte())
+			}
+			even = !even
+		}
+		// esc data was unevenly balanced, IE
+		// \${FF FF F}
+		// there are a few ways to handle this, but in this case
+		// raise an error to the user as this might be a copy-paste
+		// error
+		check(!even) { "Hex data literal uneven" }
+
+		// TODO: need bulk put op
+		for (i in 0..<outs.flip().limit())
+		{
+			tempPutByte(outs.get(i))
+		}
+		//							val ob = ByteArray(outs.limit()).apply { outs.get(this) }
+		//							sb.append(String(ob, Charsets.ISO_8859_1))
+	}
+
+	fun doBase64EscapeSequenceThing()
+	{
+		// base64 data escape, formatted as \#{...}
+		// similar to long utf8 escape sequences being \u{...}
+		if (!vore('{'))
+		{
+			throw RuntimeException("Expected a {")
+		}
+		if (vore('}'))
+		{
+			// short circuit
+			return
+		}
+		// the data the base64 string encodes literally
+		// cant be longer than the string itself so this
+		// is a lazy approximation. would be better to count
+		// the characters first but whatever
+		// maybe the lexer should have a secondary "scratch"
+		// buffer the same length of the string
+		val outs = ByteBuffer.allocateDirect(size)
+
+		var bits = 0
+		var working = 0
+		while (true)
+		{
+			if (vore(EOS))
+			{
+				throw RuntimeException("Unfinished base64 literal")
+			}
+			if (vore('}'))
+			{
+				break
+			}
+			val ch = read()
+			if (ch == '\r' || ch == '\n')
+			{
+				voreNewline(true)
+				continue
+			}
+			if (ch !in BASE64_DIGITS)
+			{
+				continue
+			}
+			working = working shl 6
+			if (ch != '=')
+			{
+				working = working or ch.base64ToInt()
+			}
+			bits += 6
+			if (bits >= 24)
+			{
+				with(outs)
+				{
+					put((working ushr 16).toByte())
+					put((working ushr 8).toByte())
+					put(working.toByte())
+				}
+				bits = 0
+			}
+		}
+		// esc data wasnt padded with ='s
+		// while the padding isnt nessicary, im making it
+		// required anyway. bite me.
+		// raise an error to the user as this might be a copy-paste
+		// error
+		check(bits == 0) { "Base64 data not padded" }
+
+		// TODO: need bulk put op
+		for (i in 0..<outs.flip().limit())
+		{
+			tempPutByte(outs.get(i))
+		}
+
+		//							outs.flip()
+		//							val ob = ByteArray(outs.limit()).apply { outs.get(this) }
+		//							sb.append(String(ob, Charsets.ISO_8859_1))
+	}
+
+	fun doEmptyEscapeSequenceThing()
+	{
+		// non escape sequence.
+		// this does nothing and is for weird cases
+		// like a short utf8 that needs to be followed
+		// by a number, \u20\ 00 -> " 00"
+		// could also possibly be to make strings more readable
+		// in niche cases
+	}
+
+	fun doZapEscapeSequenceThing()
+	{
+		while (peek() in CONSIDERED_WHITESPACE)
+		{
+			if (peekIsNewline())
+			{
+				voreNewline()
+			}
+			else
+			{
+				skip()
+			}
+		}
+	}
+
+	fun stringHandleEscapeSequence()
+	{
+		when (val escCh = read())
+		{
+			'a' -> tempPutChar('\u0007')
+			'b' -> tempPutChar('\u0008')
+			'f' -> tempPutChar('\u000c')
+			'n' -> tempPutChar('\u000a')
+			'r' -> tempPutChar('\u000d')
+			't' -> tempPutChar('\u0009')
+			'v' -> tempPutChar('\u000b')
+			'x' ->
+			{
+				val hi = read().hexToIntOrThrow()
+				val lo = read().hexToIntOrThrow()
+				tempPutInt((hi shl 4) or lo)
+			}
+
+			'u' -> doUtf8EscSequenceThing()
+			'$' -> doByteArrayEscSequenceThing()
+			'#' -> doBase64EscapeSequenceThing()
+
+
+			'\r', '\n' -> tempPutChar('\n').also { voreNewline(true) }
+
+			'\"', '\'', '\\' -> tempPutChar(escCh)
+
+			'z' -> doZapEscapeSequenceThing()
+			' ' -> doEmptyEscapeSequenceThing()
+			else ->
+			{
+				check(peek().isDigit()) { "Invalid escape sequence" }
+				rewind()
+				val acc = (1..3)
+					.map { peek() }
+					.takeWhile { it.isDigit() }
+					.fold(0) { acc, ch -> acc * 10 + (ch - '0').also { skip() } }
+				check(acc <= UByte.MAX_VALUE.toInt()) { "Decimal escape sequence value of $acc too large" }
+				tempPutInt(acc)
+			}
+		}
+	}
+
 	fun readString (delimiter:Char): Token
 	{
 		// includes the starting delimiter for error messages
@@ -93,268 +368,7 @@ class LStringReader(path: Path): StringReader(path)
 			when (val ch = read())
 			{
 				EOS, '\r', '\n' -> throw RuntimeException("Unfinished String")
-				'\\' -> {
-					when (val escCh = read())
-					{
-						'a' -> tempPutChar('\u0007')
-						'b' -> tempPutChar('\u0008')
-						'f' -> tempPutChar('\u000c')
-						'n' -> tempPutChar('\u000a')
-						'r' -> tempPutChar('\u000d')
-						't' -> tempPutChar('\u0009')
-						'v' -> tempPutChar('\u000b')
-						'x' ->
-						{
-							val hi = read().hexToIntOrThrow()
-							val lo = read().hexToIntOrThrow()
-							tempPutInt((hi shl 4) or lo)
-						}
-						'u' -> {
-//							TODO("not working right")
-							if (vore('{'))
-							{
-								TODO("long unicode escape sequences not implemented")
-							}
-							// require at least one digit
-							var FUCKCH = read()
-							var acc = FUCKCH.hexToIntOrThrow()
-							// up to 4
-							for (i in 1..3)
-							{
-								val ch = peek().hexToInt()
-								if (ch < 0)
-								{
-									break
-								}
-								skip()
-								acc = (acc shl 4) or ch
-							}
-
-							if (acc < 0x80)
-							{
-								// already an ascii value, just add it to the
-								// stringbuilder
-								tempPutInt(acc)
-							}
-							else
-							{
-								// 8 is overkill, longest utf8 encoded value tmk is 4 bytes
-								val outs = ByteBuffer.allocateDirect(8).order(ByteOrder.nativeOrder())
-
-								// number of bytes put (backwards) into buffer
-								var n = 1
-								var mfb = 0x3F
-								do {
-									// add continuator bytes
-									outs.put(
-										outs.capacity() - (n++),
-										(0x80 or (acc and 0x3F)).toByte()
-									)
-									// remove added bits
-									acc = acc ushr 6
-									// now there's one less bit available in first byte
-									mfb = mfb ushr 1
-									// vv still needs continue byte?
-								} while (acc > mfb)
-								// add first byte
-								outs.put(
-									outs.capacity() - n,
-									((mfb.inv() shl 1) or acc).toByte()
-								)
-								outs.flip()
-								(1..outs.limit()).forEach {
-									tempPutInt(outs.get().toInt() and 0xFF)
-								}
-							}
-						}
-
-						'$' -> {
-							// hex bytearray, formatted as \${...}
-							// similar to long utf8 escape sequences being \u{...}
-							// should technically outmode the need for \# but
-							// people probably already have base64 strings and dont
-							// want to decode them manually
-							if (!vore('{'))
-							{
-								throw RuntimeException("Expected a {")
-							}
-							if (vore('}'))
-							{
-								// short circuit
-								continue
-							}
-							// hex data literally cant be larger than half the string's
-							// length anyway (as one byte in text is
-							// represented with two bytes). it would be
-							// better to count the bytes first, but this
-							// is "fine" as a solution for a niche escape sequence
-							val outs = ByteBuffer.allocateDirect(size)
-
-							var working = 0
-							var even = false
-							while (true)
-							{
-								if (vore(EOS))
-								{
-									throw RuntimeException("Unfinished hex data literal")
-								}
-								if (vore('}'))
-								{
-									break
-								}
-								val ch = read()
-								if (ch == '\r' || ch == '\n')
-								{
-									voreNewline(true)
-									continue
-								}
-								if (ch !in HEXIDECIMAL_SYMBOLS)
-								{
-									continue
-								}
-								working = (working shl 4) or ch.hexToInt()
-								if (even)
-								{
-									outs.put(working.toByte())
-								}
-								even = !even
-							}
-							// esc data was unevenly balanced, IE
-							// \${FF FF F}
-							// there are a few ways to handle this, but in this case
-							// raise an error to the user as this might be a copy-paste
-							// error
-							check(!even) { "Hex data literal uneven" }
-
-							// TODO: need bulk put op
-							for (i in 0..<outs.flip().limit())
-							{
-								tempPutByte(outs.get(i))
-							}
-//							val ob = ByteArray(outs.limit()).apply { outs.get(this) }
-//							sb.append(String(ob, Charsets.ISO_8859_1))
-						}
-
-						'#' -> {
-							// base64 data escape, formatted as \#{...}
-							// similar to long utf8 escape sequences being \u{...}
-							if (!vore('{'))
-							{
-								throw RuntimeException("Expected a {")
-							}
-							if (vore('}'))
-							{
-								// short circuit
-								continue
-							}
-							// the data the base64 string encodes literally
-							// cant be longer than the string itself so this
-							// is a lazy approximation. would be better to count
-							// the characters first but whatever
-							// maybe the lexer should have a secondary "scratch"
-							// buffer the same length of the string
-							val outs = ByteBuffer.allocateDirect(size)
-
-							var bits = 0
-							var working = 0
-							while (true)
-							{
-								if (vore(EOS))
-								{
-									throw RuntimeException("Unfinished base64 literal")
-								}
-								if (vore('}'))
-								{
-									break
-								}
-								val ch = read()
-								if (ch == '\r' || ch == '\n')
-								{
-									voreNewline(true)
-									continue
-								}
-								if (ch !in BASE64_DIGITS)
-								{
-									continue
-								}
-								working = working shl 6
-								if (ch != '=')
-								{
-									working = working or ch.base64ToInt()
-								}
-								bits += 6
-								if (bits >= 24)
-								{
-									with (outs)
-									{
-										put((working ushr 16).toByte())
-										put((working ushr 8).toByte())
-										put(working.toByte())
-									}
-									bits = 0
-								}
-							}
-							// esc data wasnt padded with ='s
-							// while the padding isnt nessicary, im making it
-							// required anyway. bite me.
-							// raise an error to the user as this might be a copy-paste
-							// error
-							check(bits == 0) { "Base64 data not padded" }
-
-							// TODO: need bulk put op
-							for (i in 0..<outs.flip().limit())
-							{
-								tempPutByte(outs.get(i))
-							}
-
-//							outs.flip()
-//							val ob = ByteArray(outs.limit()).apply { outs.get(this) }
-//							sb.append(String(ob, Charsets.ISO_8859_1))
-						}
-
-						'\r', '\n' -> tempPutChar('\n').also { voreNewline(true) }
-
-						'\"', '\'', '\\' ->  tempPutChar(escCh)
-
-						'z' -> {
-							while (peek() in CONSIDERED_WHITESPACE)
-							{
-								if (peekIsNewline())
-								{
-									voreNewline()
-								}
-								else
-								{
-									skip()
-								}
-							}
-						}
-						' ' -> {
-							// non escape sequence.
-							// this does nothing and is for weird cases
-							// like a short utf8 that needs to be followed
-							// by a number, \u20\ 00 -> " 00"
-							// could also possibly be to make strings more readable
-							// in niche cases
-						}
-						else -> {
-							check(peek().isDigit()) { "Invalid escape sequence" }
-
-							rewind()
-							var acc = 0
-							for (i in 1..3)
-							{
-								if (!peek().isDigit())
-								{
-									break
-								}
-								acc = acc * 10 + (read() - '0')
-							}
-							check (acc <= UByte.MAX_VALUE.toInt()) { "Decimal escape sequence value of $acc too large" }
-							tempPutInt(acc)
-						}
-					}
-				}
+				'\\' -> stringHandleEscapeSequence()
 				else -> tempPutChar(ch)
 			}
 		}
