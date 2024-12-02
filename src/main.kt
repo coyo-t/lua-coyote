@@ -1,12 +1,13 @@
-import tokenize.LStringReader
+import tokenize.LTokenizer
+import tokenize.SemanticsInfo
+import tokenize.TK
 import tokenize.Token
 import kotlin.io.path.Path
-import kotlin.io.path.readText
 
 
 fun main ()
 {
-	val sr = LStringReader(
+	val sr = LTokenizer(
 		Path(
 		"./assets/testfiles",
 //		"octalnumbers"
@@ -19,7 +20,8 @@ fun main ()
 
 	var tell = 0
 	var line = 0
-	val tokens = mutableListOf<Token>()
+	val tokens = mutableListOf<TK>()
+	val tokenInfo = mutableListOf<SemanticsInfo?>()
 	while (true)
 	{
 		tell = sr.tell()
@@ -27,13 +29,14 @@ fun main ()
 		val tk = sr.lex()
 
 		tokens += tk
+		tokenInfo += sr.popSemantics()
 
 		var ads = ""
 
 
 		when (tk)
 		{
-			is Token.EndOfStream -> break
+			in TK.EOS -> break
 //			is Token.StringLiteral -> {
 //
 //				println("tokenize.Token: ${tk}")

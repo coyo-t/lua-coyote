@@ -7,13 +7,17 @@ import java.nio.file.Path
 import kotlin.math.pow
 
 
-class LStringReader(path: Path): Reader(path)
+class LTokenizer(path: Path): Reader(path)
 {
-	val tokens = mutableListOf<Token>()
-	val tokenRanges = mutableListOf<IntRange>()
-	val tokenLineNumbers = mutableListOf<IntRange>()
-
 	private var tempBuffer = GrowBuffer(128)
+
+	private var currentSemanticsInfo: SemanticsInfo? = null
+
+	fun popSemantics (): SemanticsInfo?
+	{
+		val outs = currentSemanticsInfo
+		return outs.also { currentSemanticsInfo = null }
+	}
 
 	private fun tempClear ()
 	{
@@ -35,12 +39,15 @@ class LStringReader(path: Path): Reader(path)
 		tempBuffer.putByte(v)
 	}
 
-	private fun tempCreateStringToken (): Token
+	private fun tempCreateStringToken (): TK
 	{
 		with (ByteBuffer.allocateDirect(tempBuffer.flip().limit()))
 		{
 			put(tempBuffer.asMemorySegment().asByteBuffer())
-			return Token.StringLiteral(flip())
+			currentSemanticsInfo = SemanticsInfo(
+				stringData = flip()
+			)
+			return TK.STR_LITERAL
 		}
 	}
 
@@ -358,11 +365,9 @@ class LStringReader(path: Path): Reader(path)
 		}
 	}
 
-	fun readString (delimiter:Char): Token
+	fun readString (delimiter:Char): TK
 	{
 		// includes the starting delimiter for error messages
-		val stringBegin = tokens.size
-		val lineBegin = _lineNumber
 		tempClear()
 		while (peek() != delimiter)
 		{
@@ -373,9 +378,6 @@ class LStringReader(path: Path): Reader(path)
 				else -> tempPutChar(ch)
 			}
 		}
-
-		tokenRanges += stringBegin..tokens.size
-		tokenLineNumbers += lineBegin.._lineNumber
 		// vore ending delimiter
 		skip()
 //		return Token.StringLiteral(sb.toString())
@@ -421,13 +423,11 @@ class LStringReader(path: Path): Reader(path)
 		}
 	}
 
-	fun readMultilineString (spacings:Int, isComment: Boolean):Token?
+	fun readMultilineString (spacings:Int, isComment: Boolean):TK
 	{
 		// second [
 		skip()
 		tempClear()
-//		val sb = StringBuilder()
-		val start = tell()
 		val startLine = _lineNumber
 		while (true)
 		{
@@ -444,11 +444,10 @@ class LStringReader(path: Path): Reader(path)
 						skip()
 						if (!isComment)
 						{
-							tokenRanges += start..(tell()-spacings)
-							tokenLineNumbers += startLine.._lineNumber
 							return tempCreateStringToken()
 						}
-						return null
+						// using this shouldnt occur
+						return TK.NULL
 					}
 					tempPutChar(ch)
 				}
@@ -471,7 +470,7 @@ class LStringReader(path: Path): Reader(path)
 		throw RuntimeException("Malformed number literal")
 	}
 
-	fun readHexLiteralBody(): Token
+	fun readHexLiteralBody(): TK
 	{
 		// TODO: hex fractions, ie 0x100.292FE
 		var acc = 0L
@@ -483,10 +482,11 @@ class LStringReader(path: Path): Reader(path)
 				acc = (acc shl 4) or ch.hexToIntOrThrow().toLong()
 			}
 		}
-		return Token.IntLiteral(acc.toInt())
+		currentSemanticsInfo = SemanticsInfo(integer = acc.toInt())
+		return TK.INT_LITERAL
 	}
 
-	fun readBinaryLiteralBody(): Token
+	fun readBinaryLiteralBody(): TK
 	{
 		// TODO: binary fractions, ie 0b110.101
 		var acc = 0L
@@ -502,10 +502,11 @@ class LStringReader(path: Path): Reader(path)
 				}
 			}
 		}
-		return Token.IntLiteral(acc.toInt())
+		currentSemanticsInfo = SemanticsInfo(integer = acc.toInt())
+		return TK.INT_LITERAL
 	}
 
-	fun readOctalLiteralBody(): Token
+	fun readOctalLiteralBody(): TK
 	{
 		// TODO: octal fractions, ie 0o712.113
 		var acc = 0L
@@ -517,10 +518,11 @@ class LStringReader(path: Path): Reader(path)
 				acc = (acc shl 3) + (ch - '0')
 			}
 		}
-		return Token.IntLiteral(acc.toInt())
+		currentSemanticsInfo = SemanticsInfo(integer = acc.toInt())
+		return TK.INT_LITERAL
 	}
 
-	fun readDegreesLiteralBody(): Token
+	fun readDegreesLiteralBody(): TK
 	{
 		var acc = 0L
 		var wholePart = 0L
@@ -556,10 +558,12 @@ class LStringReader(path: Path): Reader(path)
 		{
 			number = number + acc / 10.0.pow(tell() - fractPlaces)
 		}
-		return Token.NumberLiteral(Math.toRadians(number))
+		currentSemanticsInfo = SemanticsInfo(number = Math.toRadians(number))
+		return TK.NUM_LITERAL
+//		return Token.NumberLiteral(Math.toRadians(number))
 	}
 
-	fun readNumericLiteral (): Token
+	fun readNumericLiteral (): TK
 	{
 		if (peek() == '0')
 		{
@@ -674,7 +678,8 @@ class LStringReader(path: Path): Reader(path)
 //			{
 //				throw RuntimeException("Int literal doesnt fit!")
 //			}
-			return Token.IntLiteral(intAcc.toInt())
+			currentSemanticsInfo = SemanticsInfo(integer = intAcc.toInt())
+			return TK.INT_LITERAL
 		}
 		if (!intWasMadeNumber)
 		{
@@ -684,26 +689,31 @@ class LStringReader(path: Path): Reader(path)
 		{
 			numAcc += fraction.toDouble() / 10.0.pow(tell()-fractionPlaces)
 		}
-		return Token.NumberLiteral(numAcc)
+		currentSemanticsInfo = SemanticsInfo(number = numAcc)
+		return TK.NUM_LITERAL
 	}
 
-	fun handleDot (): Token
+	fun handleDot (): TK
 	{
 		if (vore('.'))
 		{
 			if (vore('.'))
 			{
-				return Token.Symbol.ELLIPSIS
+				return TK.ELLIPSIS
 			}
-			return Token.Symbol.CONCAT
+			return TK.CONCAT
 		}
 		// disallow leading-zeroless decimals
-		return Token.Symbol.DOT
+		return TK.DOT
 	}
 
 
-	fun lex (): Token
+	fun lex (): TK
 	{
+		if (currentSemanticsInfo != null)
+		{
+			throw RuntimeException("Me error, i didnt handle the returned semantics!!!")
+		}
 		while (true)
 		{
 			when (val ch = peek())
@@ -714,7 +724,7 @@ class LStringReader(path: Path): Reader(path)
 					skip()
 					if (!vore('-'))
 					{
-						return Token.Symbol.DASH
+						return TK.DASH
 					}
 					if (peek() == '[')
 					{
@@ -741,53 +751,53 @@ class LStringReader(path: Path): Reader(path)
 					{
 						throw RuntimeException("invalid multiline string delimiter")
 					}
-					return Token.Symbol.LBRACKET
+					return TK.LBRACKET
 				}
 				'=' -> {
 					skip()
 					return if (vore('='))
-						Token.Symbol.DOUBLEEQ
+						TK.DOUBLEEQ
 					else
-						Token.Symbol.EQ
+						TK.EQ
 				}
 				'<' -> {
 					skip()
 					return if (vore('='))
-						Token.Symbol.LEQ
+						TK.LEQ
 					else if (vore('<'))
-						Token.Symbol.LSH
+						TK.LSH
 					else
-						Token.Symbol.LT
+						TK.LT
 				}
 				'>' -> {
 					skip()
 					return if (vore('='))
-						Token.Symbol.GEQ
+						TK.GEQ
 					else if (vore('>'))
-						Token.Symbol.RSH
+						TK.RSH
 					else
-						Token.Symbol.GT
+						TK.GT
 				}
 				'/' -> {
 					skip()
 					return if (vore('/'))
-						Token.Symbol.DOUBLESLASH
+						TK.DOUBLESLASH
 					else
-						Token.Symbol.SLASH
+						TK.SLASH
 				}
 				'~' -> {
 					skip()
 					return if (vore('='))
-						Token.Symbol.NEQ
+						TK.NEQ
 					else
-						Token.Symbol.SQUIGGLE
+						TK.SQUIGGLE
 				}
 				':' -> {
 					skip()
 					return if (vore(':'))
-						Token.Symbol.DOUBLECOLON
+						TK.DOUBLECOLON
 					else
-						Token.Symbol.COLON
+						TK.COLON
 				}
 				'\"', '\'' -> {
 					skip()
@@ -800,19 +810,22 @@ class LStringReader(path: Path): Reader(path)
 				in '0'..'9' -> return readNumericLiteral()
 
 				EOS -> {
-					return Token.EndOfStream
+					return TK.EOS
 				}
 				else -> {
 					if (ch in OKAY_TO_START_IDENTIFIER)
 					{
 						val id = voreWhile { it in IDENTIFIER_SYMBOLS }
-						return if (id in Token.Keyword)
-							Token.Keyword[id]
-						else
-							Token.Identifier(id)
+						return TK.keywords[id] ?: run {
+							// id
+							currentSemanticsInfo = SemanticsInfo(
+								stringName = id
+							)
+							TK.IDENTIFIER
+						}
 					}
 					// misc symbol
-					return Token.Symbol(ch)
+					return TK(ch)
 				}
 			}
 		}
