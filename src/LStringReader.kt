@@ -1,4 +1,5 @@
 import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import kotlin.math.pow
 
 
@@ -60,14 +61,71 @@ class LStringReader(text: CharSequence): StringReader(text)
 							val lo = read().hexToIntOrThrow()
 							sb.append(((hi shl 4) or lo).toChar())
 						}
-						'u' -> TODO("i dont feel like adding the utf8 esc stuff rn")
+						'u' -> {
+							TODO("not working right")
+							if (vore('{'))
+							{
+								TODO("long unicode escape sequences not implemented")
+							}
+							// require at least one digit
+							var FUCKCH = read()
+							var acc = FUCKCH.hexToIntOrThrow()
+							// up to 4
+							for (i in 1..3)
+							{
+								val ch = peek().hexToInt()
+								if (ch < 0)
+								{
+									break
+								}
+								skip()
+								acc = (acc shl 4) or ch
+							}
 
-						// hex bytearray, formatted as \${...}
-						// similar to long utf8 escape sequences being \u{...}
-						// should technically outmode the need for \# but
-						// people probably already have base64 strings and dont
-						// want to decode them manually
+							if (acc < 0x80)
+							{
+								// already an ascii value, just add it to the
+								// stringbuilder
+								sb.append(acc.toChar())
+							}
+							else
+							{
+								// 8 is overkill, longest utf8 encoded value tmk is 4 bytes
+								val outs = ByteBuffer.allocateDirect(8).order(ByteOrder.nativeOrder())
+
+								// number of bytes put (backwards) into buffer
+								var n = 1
+								var mfb = 0x3F
+								do {
+									// add continuator bytes
+									outs.put(
+										outs.capacity() - (n++),
+										(0x80 or (acc and 0x3F)).toByte()
+									)
+									// remove added bits
+									acc = acc ushr 6
+									// now there's one less bit available in first byte
+									mfb = mfb ushr 1
+									// vv still needs continue byte?
+								} while (acc > mfb)
+								// add first byte
+								outs.put(
+									outs.capacity() - n,
+									((mfb.inv() shl 1) or acc).toByte()
+								)
+								outs.flip()
+								(1..outs.limit()).forEach {
+									sb.append((outs.get().toInt() and 0xFF).toChar())
+								}
+							}
+						}
+
 						'$' -> {
+							// hex bytearray, formatted as \${...}
+							// similar to long utf8 escape sequences being \u{...}
+							// should technically outmode the need for \# but
+							// people probably already have base64 strings and dont
+							// want to decode them manually
 							if (!vore('{'))
 							{
 								throw RuntimeException("Expected a {")
@@ -125,9 +183,9 @@ class LStringReader(text: CharSequence): StringReader(text)
 							sb.append(String(ob, Charsets.ISO_8859_1))
 						}
 
-						// base64 data escape, formatted as \#{...}
-						// similar to long utf8 escape sequences being \u{...}
 						'#' -> {
+							// base64 data escape, formatted as \#{...}
+							// similar to long utf8 escape sequences being \u{...}
 							if (!vore('{'))
 							{
 								throw RuntimeException("Expected a {")

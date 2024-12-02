@@ -26,7 +26,7 @@ fun Char.base64ToInt (): Int
 fun Char.hexToIntOrThrow (): Int
 {
 
-	val outs = base64ToInt()
+	val outs = hexToInt()
 	if (outs < 0)
 	{
 		throw IllegalArgumentException("Not a hex digit")

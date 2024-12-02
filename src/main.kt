@@ -10,10 +10,12 @@ fun main ()
 //		"multiline"
 //		"bytearrayescapeseq"
 		"base64esc"
+//		"unicodeesc"
 	).readText(Charsets.ISO_8859_1))
 
 	var tell = 0
 	var line = 0
+	val tokens = mutableListOf<Token>()
 	while (true)
 	{
 		tell = sr.tell()
@@ -24,20 +26,24 @@ fun main ()
 			continue
 		}
 
-//		sr.addToken(tk)
+		tokens += tk
 
 		var ads = ""
-		if (tk is Token.NumberLiteral || tk is Token.IntLiteral)
-		{
-			ads = "\t"
-		}
-		println("$ads${line..sr.currentLineNumber()} $tk")
 
-		if (tk == Token.EndOfStream)
+//		println("$ads${line..sr.currentLineNumber()} $tk")
+
+		when (tk)
 		{
-			break
+			is Token.EndOfStream -> break
+			is Token.StringLiteral -> {
+				val data = tk.body.encodeToByteArray()
+				println("Token: ${tk.body}")
+//				println("Token: ${String(data, Charsets.UTF_8)}")
+			}
+			else -> {}
 		}
 	}
+	println("Endzor")
 }
 
 
