@@ -707,6 +707,18 @@ class LTokenizer(path: Path): Reader(path)
 		return TK.DOT
 	}
 
+	fun skipToNext ()
+	{
+		while(true)
+		{
+			when (val ch = peek())
+			{
+				'\n', '\r' -> voreNewline()
+				' ', ESCF, '\t', ESCV -> skip()
+				else -> return
+			}
+		}
+	}
 
 	fun lex (): TK
 	{

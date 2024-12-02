@@ -1,14 +1,4 @@
 package tokenize
-fun Char.base64ToIntOrThrow (): Int
-{
-
-	val outs = base64ToInt()
-	if (outs < 0)
-	{
-		throw IllegalArgumentException("Not a base64 digit")
-	}
-	return outs
-}
 
 fun Char.base64ToInt (): Int
 {

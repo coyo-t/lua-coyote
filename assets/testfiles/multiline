@@ -12,7 +12,8 @@ local b = [[
 local c = 'this is a \
 weirdo string that\
 continues itself with whacks'
-local dzz = 'this\32string\32has\32no\32spaces\32lol'
+local dzz =
+'this\32string\32has\32no\32spaces\32lol'
 
 if a == test then
 	print'Oigh jeez this guy agian'

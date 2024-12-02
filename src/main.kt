@@ -4,6 +4,14 @@ import tokenize.TK
 import kotlin.io.path.Path
 
 
+class LexerState
+{
+	var current: TK = TK.NULL
+	var lookahead: TK = TK.NULL
+	val tokens = mutableListOf<TK>()
+	val tokenInfo = mutableListOf<SemanticsInfo?>()
+}
+
 fun main ()
 {
 	val sr = LTokenizer(
@@ -17,38 +25,42 @@ fun main ()
 		)
 	)
 
-	var tell = 0
-	var line = 0
-	val tokens = mutableListOf<TK>()
-	val tokenInfo = mutableListOf<SemanticsInfo?>()
-	while (true)
+	val lex = LexerState()
+
+	with (lex)
 	{
-		tell = sr.tell()
-		line = sr.currentLineNumber()
-		val tk = sr.lex()
-
-		tokens += tk
-		tokenInfo += sr.popSemantics()
-
-		var ads = ""
-
-
-		when (tk)
+		var tell = 0
+		var line = 0
+		while (true)
 		{
-			in TK.EOS -> break
-//			is Token.StringLiteral -> {
-//
-//				println("tokenize.Token: ${tk}")
-//				println()
-////				println("tokenize.Token: ${String(data, Charsets.UTF_8)}")
-//			}
-			else -> {
-				println("$ads${line..sr.currentLineNumber()} $tk")
+			sr.skipToNext()
+			tell = sr.tell()
+			line = sr.currentLineNumber()
+			val tk = sr.lex()
 
+			tokens += tk
+			tokenInfo += sr.popSemantics()
+
+			var ads = ""
+
+			when (tk)
+			{
+				in TK.EOS -> break
+	//			is Token.StringLiteral -> {
+	//
+	//				println("tokenize.Token: ${tk}")
+	//				println()
+	////				println("tokenize.Token: ${String(data, Charsets.UTF_8)}")
+	//			}
+				else -> {
+					println("$ads${line..sr.currentLineNumber()} $tk")
+
+				}
 			}
 		}
+		println("Endzor")
 	}
-	println("Endzor")
+
 }
 
 
