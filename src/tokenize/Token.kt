@@ -1,3 +1,5 @@
+package tokenize
+
 sealed class Token
 {
 	class Keyword private constructor (val kw: String): Token()

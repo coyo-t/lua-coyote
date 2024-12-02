@@ -1,17 +1,21 @@
+import tokenize.LStringReader
+import tokenize.Token
 import kotlin.io.path.Path
 import kotlin.io.path.readText
 
 
 fun main ()
 {
-	val sr = LStringReader(Path(
-		"./assets/testfiles",
+	val sr = LStringReader(
+		Path(
+			"./assets/testfiles",
 //		"octalnumbers"
 //		"multiline"
 //		"bytearrayescapeseq"
-		"base64esc"
+			"base64esc"
 //		"unicodeesc"
-	).readText(Charsets.ISO_8859_1))
+		).readText(Charsets.ISO_8859_1)
+	)
 
 	var tell = 0
 	var line = 0
@@ -37,8 +41,8 @@ fun main ()
 			is Token.EndOfStream -> break
 			is Token.StringLiteral -> {
 				val data = tk.body.encodeToByteArray()
-				println("Token: ${tk.body}")
-//				println("Token: ${String(data, Charsets.UTF_8)}")
+				println("tokenize.Token: ${tk.body}")
+//				println("tokenize.Token: ${String(data, Charsets.UTF_8)}")
 			}
 			else -> {}
 		}

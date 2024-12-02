@@ -1,3 +1,5 @@
+package tokenize
+
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import kotlin.math.pow
@@ -306,12 +308,6 @@ class LStringReader(text: CharSequence): StringReader(text)
 		// vore ending delimiter
 		skip()
 		return Token.StringLiteral(sb.toString())//.also { println("string $it") })
-	}
-
-	fun voreNext (expect:Char): Boolean
-	{
-		skip()
-		return vore(expect)
 	}
 
 	fun voreWhile (cond:(Char)->Boolean):String

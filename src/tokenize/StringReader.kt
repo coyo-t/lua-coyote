@@ -1,3 +1,5 @@
+package tokenize
+
 import kotlin.properties.Delegates
 
 open class StringReader(var text: CharSequence)
