@@ -1,7 +1,6 @@
 import tokenize.LTokenizer
 import tokenize.SemanticsInfo
 import tokenize.TK
-import tokenize.Token
 import kotlin.io.path.Path
 
 
