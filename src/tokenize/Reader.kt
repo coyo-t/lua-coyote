@@ -29,7 +29,6 @@ open class Reader (text: Path)
 
 	private var _currDirty = true
 	private var _cur = EOS
-	private var _pev = EOS-1
 
 	fun get (i:Int):Char
 	{
@@ -52,18 +51,12 @@ open class Reader (text: Path)
 	}
 	fun rewind () = cursor--
 
-	fun pev (): Char
-	{
-		return _pev
-	}
-
 	fun currentLineNumber () = _lineNumber
 
 	fun peek (): Char
 	{
 		if (_currDirty)
 		{
-			_pev = _cur
 			_cur = get(cursor)
 			_currDirty = false
 		}
