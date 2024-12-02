@@ -21,8 +21,15 @@ value class TK (val numeric: Int)
 		private var SPECIAL_COUNTER = SPECIAL_START
 
 		val _categories = mutableMapOf<TK, String>()
-		val _keywords = mutableMapOf<TK, String>()
+		val _tk2keywordname = mutableMapOf<TK, String>()
+		val _keywordname2tk = mutableMapOf<String, TK>()
 		val _symbols = mutableMapOf<TK, String>()
+
+		private fun TK.addkw (s:String)
+		{
+			_tk2keywordname[this] = s
+			_keywordname2tk[s] = this
+		}
 
 		private fun keyword (bloc:TK.()->Unit):TK
 		{
@@ -102,70 +109,70 @@ value class TK (val numeric: Int)
 		}
 
 		val AND = keyword {
-			_keywords[this] = "and"
+			addkw("and")
 		}
 		val BREAK = keyword {
-			_keywords[this] = "break"
+			addkw("break")
 		}
 		val DO = keyword {
-			_keywords[this] = "do"
+			addkw("do")
 		}
 		val ELSE = keyword {
-			_keywords[this] = "else"
+			addkw("else")
 		}
 		val ELSEIF = keyword {
-			_keywords[this] = "elseif"
+			addkw("elseif")
 		}
 		val END = keyword {
-			_keywords[this] = "end"
+			addkw("end")
 		}
 		val FALSE = keyword {
-			_keywords[this] = "false"
+			addkw("false")
 		}
 		val FOR = keyword {
-			_keywords[this] = "for"
+			addkw("for")
 		}
 		val FUNCTION = keyword {
-			_keywords[this] = "function"
+			addkw("function")
 		}
 		val GOTO = keyword {
-			_keywords[this] = "goto"
+			addkw("goto")
 		}
 		val IF = keyword {
-			_keywords[this] = "if"
+			addkw("if")
 		}
 		val IN = keyword {
-			_keywords[this] = "in"
+			addkw("in")
 		}
 		val LOCAL = keyword {
-			_keywords[this] = "local"
+			addkw("local")
 		}
 		val NIL = keyword {
-			_keywords[this] = "nil"
+			addkw("nil")
 		}
 		val NOT = keyword {
-			_keywords[this] = "not"
+			addkw("not")
 		}
 		val OR = keyword {
-			_keywords[this] = "or"
+			addkw("or")
 		}
 		val REPEAT = keyword {
-			_keywords[this] = "repeat"
+			addkw("repeat")
 		}
 		val RETURN = keyword {
-			_keywords[this] = "return"
+			addkw("return")
 		}
 		val THEN = keyword {
-			_keywords[this] = "then"
+			addkw("then")
 		}
 		val TRUE = keyword {
-			_keywords[this] = "true"
+			addkw("true")
 		}
 		val UNTIL = keyword {
-			_keywords[this] = "until"
+			addkw("until")
 		}
 		val WHILE = keyword {
-			_keywords[this] = "while"
+			addkw("while")
 		}
 
 		val STR_LITERAL = TK()
@@ -173,6 +180,6 @@ value class TK (val numeric: Int)
 		val INT_LITERAL = TK()
 		val IDENTIFIER = TK()
 
-		val keywords = _keywords
+		val keywords = _keywordname2tk
 	}
 }
