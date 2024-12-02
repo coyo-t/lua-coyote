@@ -1,5 +1,6 @@
 package tokenize
 
+import GrowBuffer
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Path
@@ -12,7 +13,7 @@ class LStringReader(path: Path): Reader(path)
 	val tokenRanges = mutableListOf<IntRange>()
 	val tokenLineNumbers = mutableListOf<IntRange>()
 
-	private var tempBuffer = ByteBuffer.allocate(128)
+	private var tempBuffer = GrowBuffer(128)
 
 	private fun tempClear ()
 	{
@@ -31,28 +32,14 @@ class LStringReader(path: Path): Reader(path)
 
 	private fun tempPutByte (v: Byte)
 	{
-		with (tempBuffer)
-		{
-			val cap = capacity()
-			val pos = position()
-			if (pos+1 > cap)
-			{
-				val news = ByteBuffer.allocateDirect(cap + (cap ushr 1))
-				news.put(flip()).position(pos)
-				tempBuffer = news
-			}
-		}
-		with (tempBuffer)
-		{
-			put(v)
-		}
+		tempBuffer.putByte(v)
 	}
 
 	private fun tempCreateStringToken (): Token
 	{
 		with (ByteBuffer.allocateDirect(tempBuffer.flip().limit()))
 		{
-			put(tempBuffer)
+			put(tempBuffer.asMemorySegment().asByteBuffer())
 			return Token.StringLiteral(flip())
 		}
 	}
