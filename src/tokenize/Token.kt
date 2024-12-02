@@ -48,6 +48,7 @@ sealed class Token
 			val WHILE = Keyword("while")
 		}
 	}
+
 	class Symbol (val symbol: String): Token()
 	{
 		constructor (ch:Char): this(ch.toString())
@@ -80,6 +81,12 @@ sealed class Token
 			val DOT = Symbol(".")
 		}
 	}
+
+	//TODO:
+	//	string literals need to have their data
+	//	in a bytebuffer or memorysegment, as thats what
+	//	they are in lua. storing them in strings is largely
+	//	convienent but inconsistent
 	class StringLiteral (val body:String): Token()
 	{
 		override fun toString(): String
@@ -87,6 +94,7 @@ sealed class Token
 			return "<String Literal: \"$body\">"
 		}
 	}
+
 	class IntLiteral (val value:Int): Token()
 	{
 		override fun toString(): String
@@ -94,6 +102,7 @@ sealed class Token
 			return "<Int Literal: $value >"
 		}
 	}
+
 	class NumberLiteral (val value:Double): Token()
 	{
 		override fun toString(): String
@@ -102,6 +111,7 @@ sealed class Token
 //			return "Number Literal: %.8f >".format(value)
 		}
 	}
+
 	class Identifier (val name:String):Token()
 	{
 		override fun toString(): String
@@ -109,6 +119,7 @@ sealed class Token
 			return "<Identifier: $name>"
 		}
 	}
+
 	data object EndOfStream : Token()
 	{
 		override fun toString(): String
