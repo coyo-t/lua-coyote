@@ -7,7 +7,7 @@ operator fun Char.contains (tk:TK)
 value class TK (val numeric: Int)
 {
 	constructor(ch:Char):this(ch.code)
-	private constructor():this(SPECIAL_START++)
+	private constructor():this(SPECIAL_COUNTER++)
 
 	operator fun contains (other:TK)
 		= other.numeric == numeric
@@ -17,13 +17,25 @@ value class TK (val numeric: Int)
 
 	companion object
 	{
-		private var SPECIAL_START = 0x100
+		private const val SPECIAL_START = 0x100
+		private var SPECIAL_COUNTER = SPECIAL_START
 
+		val _categories = mutableMapOf<TK, String>()
 		val _keywords = mutableMapOf<TK, String>()
+		val _symbols = mutableMapOf<TK, String>()
 
 		private fun keyword (bloc:TK.()->Unit):TK
 		{
 			val outs = TK()
+			_categories[outs] = "keyword"
+			bloc.invoke(outs)
+			return outs
+		}
+
+		private fun symbol (bloc:TK.()->Unit):TK
+		{
+			val outs = TK()
+			_categories[outs] = "symbol"
 			bloc.invoke(outs)
 			return outs
 		}
@@ -31,69 +43,129 @@ value class TK (val numeric: Int)
 		val NULL = TK(-2)
 		val EOS = TK(-1)
 
-		val DASH = TK()
-		val LBRACKET = TK()
-		val EQ = TK()
-		val DOUBLEEQ = TK()
-		val LEQ = TK()
-		val LSH = TK()
-		val LT = TK()
-		val GEQ = TK()
-		val RSH = TK()
-		val GT = TK()
-		val DOUBLESLASH = TK()
-		val SLASH = TK()
-		val NEQ = TK()
-		val SQUIGGLE = TK()
-		val DOUBLECOLON = TK()
-		val COLON = TK()
-		val ELLIPSIS = TK()
-		val CONCAT = TK()
-		val DOT = TK()
+		val DASH = symbol {
+			_symbols[this] = "-"
+		}
+		val LBRACKET = symbol {
+			_symbols[this] = "["
+		}
+		val EQ = symbol {
+			_symbols[this] = "="
+		}
+		val DOUBLEEQ = symbol {
+			_symbols[this] = "=="
+		}
+		val LEQ = symbol {
+			_symbols[this] = "<="
+		}
+		val LSH = symbol {
+			_symbols[this] = "<<"
+		}
+		val LT = symbol {
+			_symbols[this] = "<"
+		}
+		val GEQ = symbol {
+			_symbols[this] = ">"
+		}
+		val RSH = symbol {
+			_symbols[this] = ">>"
+		}
+		val GT = symbol {
+			_symbols[this] = ">"
+		}
+		val DOUBLESLASH = symbol {
+			_symbols[this] = "//"
+		}
+		val SLASH = symbol {
+			_symbols[this] = "/"
+		}
+		val NEQ = symbol {
+			_symbols[this] = "~="
+		}
+		val SQUIGGLE = symbol {
+			_symbols[this] = "~"
+		}
+		val DOUBLECOLON = symbol {
+			_symbols[this] = "::"
+		}
+		val COLON = symbol {
+			_symbols[this] = ":"
+		}
+		val ELLIPSIS = symbol {
+			_symbols[this] = "..."
+		}
+		val CONCAT = symbol {
+			_symbols[this] = ".."
+		}
+		val DOT = symbol {
+			_symbols[this] = "."
+		}
 
 		val AND = keyword {
+			_keywords[this] = "and"
 		}
 		val BREAK = keyword {
+			_keywords[this] = "break"
 		}
 		val DO = keyword {
+			_keywords[this] = "do"
 		}
 		val ELSE = keyword {
+			_keywords[this] = "else"
 		}
 		val ELSEIF = keyword {
+			_keywords[this] = "elseif"
 		}
 		val END = keyword {
+			_keywords[this] = "end"
 		}
 		val FALSE = keyword {
+			_keywords[this] = "false"
 		}
 		val FOR = keyword {
+			_keywords[this] = "for"
 		}
 		val FUNCTION = keyword {
+			_keywords[this] = "function"
 		}
 		val GOTO = keyword {
+			_keywords[this] = "goto"
 		}
 		val IF = keyword {
+			_keywords[this] = "if"
 		}
 		val IN = keyword {
+			_keywords[this] = "in"
 		}
 		val LOCAL = keyword {
+			_keywords[this] = "local"
 		}
 		val NIL = keyword {
+			_keywords[this] = "nil"
 		}
 		val NOT = keyword {
+			_keywords[this] = "not"
 		}
 		val OR = keyword {
+			_keywords[this] = "or"
 		}
 		val REPEAT = keyword {
+			_keywords[this] = "repeat"
 		}
 		val RETURN = keyword {
+			_keywords[this] = "return"
 		}
 		val THEN = keyword {
+			_keywords[this] = "then"
 		}
 		val TRUE = keyword {
+			_keywords[this] = "true"
 		}
 		val UNTIL = keyword {
+			_keywords[this] = "until"
 		}
 		val WHILE = keyword {
+			_keywords[this] = "while"
 		}
 
 		val STR_LITERAL = TK()
@@ -101,29 +173,6 @@ value class TK (val numeric: Int)
 		val INT_LITERAL = TK()
 		val IDENTIFIER = TK()
 
-		val keywords = mapOf(
-			"and" to AND,
-			"break" to BREAK,
-			"do" to DO,
-			"else" to ELSE,
-			"elseif" to ELSEIF,
-			"end" to END,
-			"false" to FALSE,
-			"for" to FOR,
-			"function" to FUNCTION,
-			"goto" to GOTO,
-			"if" to IF,
-			"in" to IN,
-			"local" to LOCAL,
-			"nil" to NIL,
-			"not" to NOT,
-			"or" to OR,
-			"repeat" to REPEAT,
-			"return" to RETURN,
-			"then" to THEN,
-			"true" to TRUE,
-			"until" to UNTIL,
-			"while" to WHILE,
-		)
+		val keywords = _keywords
 	}
 }
