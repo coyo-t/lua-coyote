@@ -314,6 +314,21 @@ class LStringReader(path: Path): StringReader(path)
 		}
 	}
 
+	fun doDecimalEscapeSequenceThing()
+	{
+		tempPutInt(
+			(1..3)
+			.map { peek() }
+			.takeWhile(Char::isDigit)
+			.fold(0) { acc, ch -> acc*10+(ch-'0').also { skip() } }
+			.apply {
+				check(this <= UByte.MAX_VALUE.toInt()) {
+					"Decimal escape sequence value of $this too large"
+				}
+			}
+		)
+	}
+
 	fun stringHandleEscapeSequence()
 	{
 		when (val escCh = read())
@@ -347,12 +362,7 @@ class LStringReader(path: Path): StringReader(path)
 			{
 				check(peek().isDigit()) { "Invalid escape sequence" }
 				rewind()
-				val acc = (1..3)
-					.map { peek() }
-					.takeWhile { it.isDigit() }
-					.fold(0) { acc, ch -> acc * 10 + (ch - '0').also { skip() } }
-				check(acc <= UByte.MAX_VALUE.toInt()) { "Decimal escape sequence value of $acc too large" }
-				tempPutInt(acc)
+				doDecimalEscapeSequenceThing()
 			}
 		}
 	}
