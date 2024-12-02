@@ -1,9 +1,26 @@
 package tokenize
 
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
+import java.nio.file.Path
+import kotlin.io.path.readBytes
 import kotlin.properties.Delegates
 
-open class StringReader(var text: CharSequence)
+open class StringReader (text: Path)
 {
+
+	val data = run {
+		val b = text.readBytes()
+		val count = b.size
+		ByteBuffer.allocateDirect(count).apply {
+			order(ByteOrder.nativeOrder())
+			put(b)
+			flip()
+		}
+	}
+
+	val size = data.limit()
+
 	var cursor by Delegates.observable(0) { _, _, _ ->
 		_currDirty = true
 	}
@@ -16,7 +33,11 @@ open class StringReader(var text: CharSequence)
 
 	fun get (i:Int):Char
 	{
-		return text.getOrElse(i) { EOS }
+		if (i !in 0..<size)
+		{
+			return EOS
+		}
+		return (data.get(i).toInt() and 0xFF).toChar()
 	}
 
 	fun seek (to:Int)

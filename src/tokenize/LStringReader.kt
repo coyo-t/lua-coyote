@@ -2,14 +2,60 @@ package tokenize
 
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.file.Path
 import kotlin.math.pow
 
 
-class LStringReader(text: CharSequence): StringReader(text)
+class LStringReader(path: Path): StringReader(path)
 {
 	val tokens = mutableListOf<Token>()
 	val tokenRanges = mutableListOf<IntRange>()
 	val tokenLineNumbers = mutableListOf<IntRange>()
+
+	private var tempBuffer = ByteBuffer.allocate(128)
+
+	private fun tempClear ()
+	{
+		tempBuffer.clear()
+	}
+
+	private fun tempPutChar (v:Char)
+	{
+		tempPutInt(v.code)
+	}
+
+	private fun tempPutInt (i:Int)
+	{
+		tempPutByte((i and 0xFF).toByte())
+	}
+
+	private fun tempPutByte (v: Byte)
+	{
+		with (tempBuffer)
+		{
+			val cap = capacity()
+			val pos = position()
+			if (pos+1 > cap)
+			{
+				val news = ByteBuffer.allocateDirect(cap + (cap ushr 1))
+				news.put(flip()).position(pos)
+				tempBuffer = news
+			}
+		}
+		with (tempBuffer)
+		{
+			put(v)
+		}
+	}
+
+	private fun tempCreateStringToken (): Token
+	{
+		with (ByteBuffer.allocateDirect(tempBuffer.flip().limit()))
+		{
+			put(tempBuffer)
+			return Token.StringLiteral(flip())
+		}
+	}
 
 	fun peekIsNewline () = peek().let { it=='\r'||it=='\n' }
 
@@ -41,7 +87,7 @@ class LStringReader(text: CharSequence): StringReader(text)
 		// includes the starting delimiter for error messages
 		val stringBegin = tokens.size
 		val lineBegin = _lineNumber
-		val sb = StringBuilder()
+		tempClear()
 		while (peek() != delimiter)
 		{
 			when (val ch = read())
@@ -50,21 +96,21 @@ class LStringReader(text: CharSequence): StringReader(text)
 				'\\' -> {
 					when (val escCh = read())
 					{
-						'a' -> sb.append('\u0007')
-						'b' -> sb.append('\u0008')
-						'f' -> sb.append('\u000c')
-						'n' -> sb.append('\u000a')
-						'r' -> sb.append('\u000d')
-						't' -> sb.append('\u0009')
-						'v' -> sb.append('\u000b')
+						'a' -> tempPutChar('\u0007')
+						'b' -> tempPutChar('\u0008')
+						'f' -> tempPutChar('\u000c')
+						'n' -> tempPutChar('\u000a')
+						'r' -> tempPutChar('\u000d')
+						't' -> tempPutChar('\u0009')
+						'v' -> tempPutChar('\u000b')
 						'x' ->
 						{
 							val hi = read().hexToIntOrThrow()
 							val lo = read().hexToIntOrThrow()
-							sb.append(((hi shl 4) or lo).toChar())
+							tempPutInt((hi shl 4) or lo)
 						}
 						'u' -> {
-							TODO("not working right")
+//							TODO("not working right")
 							if (vore('{'))
 							{
 								TODO("long unicode escape sequences not implemented")
@@ -88,7 +134,7 @@ class LStringReader(text: CharSequence): StringReader(text)
 							{
 								// already an ascii value, just add it to the
 								// stringbuilder
-								sb.append(acc.toChar())
+								tempPutInt(acc)
 							}
 							else
 							{
@@ -117,7 +163,7 @@ class LStringReader(text: CharSequence): StringReader(text)
 								)
 								outs.flip()
 								(1..outs.limit()).forEach {
-									sb.append((outs.get().toInt() and 0xFF).toChar())
+									tempPutInt(outs.get().toInt() and 0xFF)
 								}
 							}
 						}
@@ -142,7 +188,7 @@ class LStringReader(text: CharSequence): StringReader(text)
 							// represented with two bytes). it would be
 							// better to count the bytes first, but this
 							// is "fine" as a solution for a niche escape sequence
-							val outs = ByteBuffer.allocateDirect(text.length)
+							val outs = ByteBuffer.allocateDirect(size)
 
 							var working = 0
 							var even = false
@@ -180,9 +226,13 @@ class LStringReader(text: CharSequence): StringReader(text)
 							// error
 							check(!even) { "Hex data literal uneven" }
 
-							outs.flip()
-							val ob = ByteArray(outs.limit()).apply { outs.get(this) }
-							sb.append(String(ob, Charsets.ISO_8859_1))
+							// TODO: need bulk put op
+							for (i in 0..<outs.flip().limit())
+							{
+								tempPutByte(outs.get(i))
+							}
+//							val ob = ByteArray(outs.limit()).apply { outs.get(this) }
+//							sb.append(String(ob, Charsets.ISO_8859_1))
 						}
 
 						'#' -> {
@@ -203,7 +253,7 @@ class LStringReader(text: CharSequence): StringReader(text)
 							// the characters first but whatever
 							// maybe the lexer should have a secondary "scratch"
 							// buffer the same length of the string
-							val outs = ByteBuffer.allocateDirect(text.length)
+							val outs = ByteBuffer.allocateDirect(size)
 
 							var bits = 0
 							var working = 0
@@ -251,14 +301,20 @@ class LStringReader(text: CharSequence): StringReader(text)
 							// error
 							check(bits == 0) { "Base64 data not padded" }
 
-							outs.flip()
-							val ob = ByteArray(outs.limit()).apply { outs.get(this) }
-							sb.append(String(ob, Charsets.ISO_8859_1))
+							// TODO: need bulk put op
+							for (i in 0..<outs.flip().limit())
+							{
+								tempPutByte(outs.get(i))
+							}
+
+//							outs.flip()
+//							val ob = ByteArray(outs.limit()).apply { outs.get(this) }
+//							sb.append(String(ob, Charsets.ISO_8859_1))
 						}
 
-						'\r', '\n' -> sb.append('\n').also { voreNewline(true) }
+						'\r', '\n' -> tempPutChar('\n').also { voreNewline(true) }
 
-						'\"', '\'', '\\' ->  sb.append(escCh)
+						'\"', '\'', '\\' ->  tempPutChar(escCh)
 
 						'z' -> {
 							while (peek() in CONSIDERED_WHITESPACE)
@@ -295,11 +351,11 @@ class LStringReader(text: CharSequence): StringReader(text)
 								acc = acc * 10 + (read() - '0')
 							}
 							check (acc <= UByte.MAX_VALUE.toInt()) { "Decimal escape sequence value of $acc too large" }
-							sb.append(acc.toChar())
+							tempPutInt(acc)
 						}
 					}
 				}
-				else -> sb.append(ch)
+				else -> tempPutChar(ch)
 			}
 		}
 
@@ -307,7 +363,8 @@ class LStringReader(text: CharSequence): StringReader(text)
 		tokenLineNumbers += lineBegin.._lineNumber
 		// vore ending delimiter
 		skip()
-		return Token.StringLiteral(sb.toString())//.also { println("string $it") })
+//		return Token.StringLiteral(sb.toString())
+		return tempCreateStringToken()
 	}
 
 	fun voreWhile (cond:(Char)->Boolean):String
@@ -318,7 +375,11 @@ class LStringReader(text: CharSequence): StringReader(text)
 			skip()
 		}
 		val count = tell()-start
-		return if (count == 0) "" else text.substring(start, tell())
+		return if (count == 0) "" else run {
+			val outs = ByteArray(count)
+			data.get(outs)
+			String(outs, Charsets.ISO_8859_1)
+		}
 	}
 
 	/**
@@ -347,7 +408,8 @@ class LStringReader(text: CharSequence): StringReader(text)
 	{
 		// second [
 		skip()
-		val sb = StringBuilder()
+		tempClear()
+//		val sb = StringBuilder()
 		val start = tell()
 		val startLine = _lineNumber
 		while (true)
@@ -367,20 +429,20 @@ class LStringReader(text: CharSequence): StringReader(text)
 						{
 							tokenRanges += start..(tell()-spacings)
 							tokenLineNumbers += startLine.._lineNumber
-							return Token.StringLiteral(sb.toString())
+							return tempCreateStringToken()
 						}
 						return null
 					}
-					sb.append(ch)
+					tempPutChar(ch)
 				}
 				'\r', '\n' -> {
 					if (!isComment)
-						sb.append('\n')
+						tempPutChar('\n')
 					voreNewline()
 				}
 				else -> {
 					if (!isComment)
-						sb.append(ch)
+						tempPutChar(ch)
 					skip()
 				}
 			}

@@ -8,13 +8,13 @@ fun main ()
 {
 	val sr = LStringReader(
 		Path(
-			"./assets/testfiles",
+		"./assets/testfiles",
 //		"octalnumbers"
-//		"multiline"
+		"multiline"
 //		"bytearrayescapeseq"
-			"base64esc"
+//		"base64esc"
 //		"unicodeesc"
-		).readText(Charsets.ISO_8859_1)
+		)
 	)
 
 	var tell = 0
@@ -34,17 +34,20 @@ fun main ()
 
 		var ads = ""
 
-//		println("$ads${line..sr.currentLineNumber()} $tk")
 
 		when (tk)
 		{
 			is Token.EndOfStream -> break
-			is Token.StringLiteral -> {
-				val data = tk.body.encodeToByteArray()
-				println("tokenize.Token: ${tk.body}")
-//				println("tokenize.Token: ${String(data, Charsets.UTF_8)}")
+//			is Token.StringLiteral -> {
+//
+//				println("tokenize.Token: ${tk}")
+//				println()
+////				println("tokenize.Token: ${String(data, Charsets.UTF_8)}")
+//			}
+			else -> {
+				println("$ads${line..sr.currentLineNumber()} $tk")
+
 			}
-			else -> {}
 		}
 	}
 	println("Endzor")

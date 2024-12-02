@@ -1,5 +1,7 @@
 package tokenize
 
+import java.nio.ByteBuffer
+
 sealed class Token
 {
 	class Keyword private constructor (val kw: String): Token()
@@ -87,11 +89,17 @@ sealed class Token
 	//	in a bytebuffer or memorysegment, as thats what
 	//	they are in lua. storing them in strings is largely
 	//	convienent but inconsistent
-	class StringLiteral (val body:String): Token()
+	class StringLiteral (val body: ByteBuffer): Token()
 	{
+		val naiiveString = run {
+			val outs = ByteArray(body.limit())
+			body.get(outs)
+//			String(outs)
+			String(outs, Charsets.ISO_8859_1)
+		}
 		override fun toString(): String
 		{
-			return "<String Literal: \"$body\">"
+			return "<String Literal: \"$naiiveString\">"
 		}
 	}
 
