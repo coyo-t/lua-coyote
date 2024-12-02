@@ -377,7 +377,9 @@ class LStringReader(path: Path): StringReader(path)
 		val count = tell()-start
 		return if (count == 0) "" else run {
 			val outs = ByteArray(count)
-			data.get(outs)
+			val p = data.position()
+			data.get(start, outs, 0, count)
+			data.position(p)
 			String(outs, Charsets.ISO_8859_1)
 		}
 	}
