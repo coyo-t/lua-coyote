@@ -301,7 +301,7 @@ class LStringReader(path: Path): StringReader(path)
 
 	fun doZapEscapeSequenceThing()
 	{
-		while (peek() in CONSIDERED_WHITESPACE)
+		while (isWhitespace(peek()))
 		{
 			if (peekIsNewline())
 			{
@@ -316,17 +316,21 @@ class LStringReader(path: Path): StringReader(path)
 
 	fun doDecimalEscapeSequenceThing()
 	{
-		tempPutInt(
-			(1..3)
-			.map { peek() }
-			.takeWhile(Char::isDigit)
-			.fold(0) { acc, ch -> acc*10+(ch-'0').also { skip() } }
-			.apply {
-				check(this <= UByte.MAX_VALUE.toInt()) {
-					"Decimal escape sequence value of $this too large"
-				}
+		var acc = 0
+		for (i in 1..3)
+		{
+			val ch = peek()
+			if (!ch.isDigit())
+			{
+				break
 			}
-		)
+			acc = acc*10+(ch-'0')
+			skip()
+		}
+		check(acc <= UByte.MAX_VALUE.toInt()) {
+			"Decimal escape sequence value of $acc too large"
+		}
+		tempPutInt(acc)
 	}
 
 	fun stringHandleEscapeSequence()
@@ -854,6 +858,9 @@ class LStringReader(path: Path): StringReader(path)
 		private val BASE64_DIGITS = (
 			ALPHABETICAL_SYMBOLS + DIGIT_SYMBOLS + setOf('=', '/', '+')
 		)
+
+		private fun isWhitespace (ch:Char)
+			= ch == ' ' || (ch in '\u0009'..'\u000d')
 
 		private val CONSIDERED_WHITESPACE = setOf(
 			'\u0009', // t
