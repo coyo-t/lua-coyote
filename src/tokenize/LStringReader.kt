@@ -1,6 +1,6 @@
 package tokenize
 
-import GrowBuffer
+import util.GrowBuffer
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.file.Path

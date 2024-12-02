@@ -1,3 +1,5 @@
+package util
+
 import java.lang.foreign.MemorySegment
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
