@@ -19,9 +19,13 @@ value class TK (val numeric: Int)
 	{
 		private var SPECIAL_START = 0x100
 
-		private fun newTk (bloc:TK.()->Unit):TK
+		val _keywords = mutableMapOf<TK, String>()
+
+		private fun keyword (bloc:TK.()->Unit):TK
 		{
-			return TK().apply(bloc)
+			val outs = TK()
+			bloc.invoke(outs)
+			return outs
 		}
 
 		val NULL = TK(-2)
@@ -47,28 +51,50 @@ value class TK (val numeric: Int)
 		val CONCAT = TK()
 		val DOT = TK()
 
-		val AND = TK()
-		val BREAK = TK()
-		val DO = TK()
-		val ELSE = TK()
-		val ELSEIF = TK()
-		val END = TK()
-		val FALSE = TK()
-		val FOR = TK()
-		val FUNCTION = TK()
-		val GOTO = TK()
-		val IF = TK()
-		val IN = TK()
-		val LOCAL = TK()
-		val NIL = TK()
-		val NOT = TK()
-		val OR = TK()
-		val REPEAT = TK()
-		val RETURN = TK()
-		val THEN = TK()
-		val TRUE = TK()
-		val UNTIL = TK()
-		val WHILE = TK()
+		val AND = keyword {
+		}
+		val BREAK = keyword {
+		}
+		val DO = keyword {
+		}
+		val ELSE = keyword {
+		}
+		val ELSEIF = keyword {
+		}
+		val END = keyword {
+		}
+		val FALSE = keyword {
+		}
+		val FOR = keyword {
+		}
+		val FUNCTION = keyword {
+		}
+		val GOTO = keyword {
+		}
+		val IF = keyword {
+		}
+		val IN = keyword {
+		}
+		val LOCAL = keyword {
+		}
+		val NIL = keyword {
+		}
+		val NOT = keyword {
+		}
+		val OR = keyword {
+		}
+		val REPEAT = keyword {
+		}
+		val RETURN = keyword {
+		}
+		val THEN = keyword {
+		}
+		val TRUE = keyword {
+		}
+		val UNTIL = keyword {
+		}
+		val WHILE = keyword {
+		}
 
 		val STR_LITERAL = TK()
 		val NUM_LITERAL = TK()
