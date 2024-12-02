@@ -36,24 +36,18 @@ fun main ()
 			sr.skipToNext()
 			tell = sr.tell()
 			line = sr.currentLineNumber()
-			val tk = sr.lex()
+			current = sr.lex()
 
-			tokens += tk
+			tokens += current
 			tokenInfo += sr.popSemantics()
 
 			var ads = ""
 
-			when (tk)
+			when (current)
 			{
 				in TK.EOS -> break
-	//			is Token.StringLiteral -> {
-	//
-	//				println("tokenize.Token: ${tk}")
-	//				println()
-	////				println("tokenize.Token: ${String(data, Charsets.UTF_8)}")
-	//			}
 				else -> {
-					println("$ads${line..sr.currentLineNumber()} $tk")
+					println("$ads${line..sr.currentLineNumber()} $current")
 
 				}
 			}

@@ -80,7 +80,7 @@ value class TK (val numeric: Int)
 		val GT = symbol {
 			_symbols[this] = ">"
 		}
-		val DOUBLESLASH = symbol {
+		val IDIV = symbol {
 			_symbols[this] = "//"
 		}
 		val SLASH = symbol {

@@ -793,7 +793,7 @@ class LTokenizer(path: Path): Reader(path)
 				'/' -> {
 					skip()
 					return if (vore('/'))
-						TK.DOUBLESLASH
+						TK.IDIV
 					else
 						TK.SLASH
 				}
